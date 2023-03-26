@@ -1,5 +1,5 @@
 pub(crate) fn escape_char(c: char) -> Option<&'static str> {
-    const UNICODE_ESCAPES: &[&'static str] = &[
+    const UNICODE_ESCAPES: &[&str] = &[
         "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005", "\\u0006", "\\u0007",
         "\\u0008", "\\u0009", "\\u000a", "\\u000b", "\\u000c", "\\u000d", "\\u000e", "\\u000f",
         "\\u0010", "\\u0011", "\\u0012", "\\u0013", "\\u0014", "\\u0015", "\\u0016", "\\u0017",

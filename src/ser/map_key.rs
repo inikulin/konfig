@@ -2,11 +2,21 @@ use super::utils;
 use crate::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
 
+pub(crate) fn serialize(v: impl Serialize) -> Result<String> {
+    let mut key = String::with_capacity(16);
+
+    key.push('[');
+    v.serialize(MapKeySerializer { out: &mut key })?;
+    key.push(']');
+
+    Ok(key)
+}
+
 struct MapKeySerializer<'o> {
     out: &'o mut String,
 }
 
-impl<'o> serde::Serializer for &mut MapKeySerializer<'o> {
+impl<'o> serde::Serializer for MapKeySerializer<'o> {
     type Ok = ();
     type Error = Error;
     type SerializeSeq = Impossible<(), Error>;
@@ -39,9 +49,7 @@ impl<'o> serde::Serializer for &mut MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.out.push('[');
         utils::write_int(self.out, v);
-        self.out.push(']');
 
         Ok(())
     }
@@ -63,9 +71,7 @@ impl<'o> serde::Serializer for &mut MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.out.push('[');
         utils::write_int(self.out, v);
-        self.out.push(']');
 
         Ok(())
     }
@@ -87,9 +93,7 @@ impl<'o> serde::Serializer for &mut MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.out.push('[');
         self.out.push_str(v);
-        self.out.push(']');
 
         Ok(())
     }

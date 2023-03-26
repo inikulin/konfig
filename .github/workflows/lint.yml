@@ -35,4 +35,4 @@ jobs:
           components: clippy
           override: true
       - name: "clippy --all"
-        run: cargo clippy --all --tests --all-features
+        run: cargo clippy -- -D warnings

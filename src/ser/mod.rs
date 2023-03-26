@@ -16,10 +16,15 @@ pub struct Serializer<'o> {
 impl<'o> Serializer<'o> {
     pub fn new(out: &'o mut String) -> Self {
         Self {
-            val_path: Default::default(),
+            val_path: vec![],
             out,
             skip_val_path_serialization: false,
         }
+    }
+
+    #[inline]
+    fn new_line(&mut self) {
+        self.out.push_str("\n\n");
     }
 
     #[inline]
@@ -42,7 +47,7 @@ impl<'o> Serializer<'o> {
         } else {
             for key in &self.val_path {
                 self.out.push_str("> ");
-                self.out.push_str(&key);
+                self.out.push_str(key);
                 self.out.push(' ');
             }
         }
@@ -58,9 +63,9 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     type SerializeTuple = Impossible<(), Error>;
     type SerializeTupleStruct = Impossible<(), Error>;
     type SerializeTupleVariant = Impossible<(), Error>;
-    type SerializeMap = Self;
-    type SerializeStruct = Self;
-    type SerializeStructVariant = Self;
+    type SerializeMap = KVSerializer<'s, 'o>;
+    type SerializeStruct = KVSerializer<'s, 'o>;
+    type SerializeStructVariant = KVSerializer<'s, 'o>;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
         self.serialize_val_path();
@@ -69,14 +74,17 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_i8(self, v: i8) -> Result<()> {
         self.serialize_i64(v.into())
     }
 
+    #[inline]
     fn serialize_i16(self, v: i16) -> Result<()> {
         self.serialize_i64(v.into())
     }
 
+    #[inline]
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.serialize_i64(v.into())
     }
@@ -88,14 +96,17 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_u8(self, v: u8) -> Result<()> {
         self.serialize_u64(v.into())
     }
 
+    #[inline]
     fn serialize_u16(self, v: u16) -> Result<()> {
         self.serialize_u64(v.into())
     }
 
+    #[inline]
     fn serialize_u32(self, v: u32) -> Result<()> {
         self.serialize_u64(v.into())
     }
@@ -107,6 +118,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_f32(self, v: f32) -> Result<()> {
         self.serialize_f64(v.into())
     }
@@ -118,6 +130,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
     }
@@ -148,6 +161,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
     }
@@ -203,6 +217,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     {
         self.serialize_unit_variant(name, variant_index, variant)?;
         self.push_path(variant);
+        self.new_line();
 
         value.serialize(self)
     }
@@ -250,22 +265,28 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Err(Error::TuplesUnsupported)
     }
 
+    #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        todo!();
+        Ok(KVSerializer::new(self))
     }
 
+    #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        todo!();
+        Ok(KVSerializer::new(self))
     }
 
     fn serialize_struct_variant(
         self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        todo!()
+        self.serialize_unit_variant(name, variant_index, variant)?;
+        self.push_path(variant);
+        self.new_line();
+
+        Ok(KVSerializer::new(self))
     }
 }
 
@@ -309,7 +330,7 @@ impl<'s, 'o> SeqSerializer<'s, 'o> {
         T: ?Sized + Serialize,
     {
         if self.current_index > 0 {
-            self.serializer.out.push_str("\n\n");
+            self.serializer.new_line();
         }
 
         self.serializer
@@ -364,57 +385,87 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
     }
 }
 
-impl<'s, 'o> serde::ser::SerializeMap for &'s mut Serializer<'o> {
-    type Ok = ();
-    type Error = Error;
+pub struct KVSerializer<'s, 'o> {
+    serializer: &'s mut Serializer<'o>,
+    current_index: usize,
+}
 
-    fn serialize_key<T>(&mut self, _key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        todo!()
-    }
-
-    fn serialize_value<T>(&mut self, _value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        todo!()
-    }
-
-    fn end(self) -> Result<()> {
-        todo!()
+impl<'s, 'o> KVSerializer<'s, 'o> {
+    fn new(serializer: &'s mut Serializer<'o>) -> Self {
+        Self {
+            serializer,
+            current_index: 0,
+        }
     }
 }
 
-impl<'s, 'o> serde::ser::SerializeStruct for &'s mut Serializer<'o> {
+impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        self.serializer.push_path(map_key::serialize(key)?);
+
+        Ok(())
     }
 
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        if self.current_index > 0 {
+            self.serializer.new_line();
+        }
+
+        value.serialize(&mut *self.serializer)?;
+        self.serializer.pop_path();
+
+        self.current_index += 1;
+
+        Ok(())
+    }
+
+    #[inline]
     fn end(self) -> Result<()> {
-        todo!()
+        Ok(())
     }
 }
 
-impl<'s, 'o> serde::ser::SerializeStructVariant for &'s mut Serializer<'o> {
+impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        self.serializer.push_path(key);
+        serde::ser::SerializeMap::serialize_value(self, value)
     }
 
+    #[inline]
     fn end(self) -> Result<()> {
-        todo!()
+        Ok(())
+    }
+}
+
+impl<'s, 'o> serde::ser::SerializeStructVariant for KVSerializer<'s, 'o> {
+    type Ok = ();
+    type Error = Error;
+
+    #[inline]
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        serde::ser::SerializeStruct::serialize_field(self, key, value)
+    }
+
+    #[inline]
+    fn end(self) -> Result<()> {
+        Ok(())
     }
 }

@@ -11,7 +11,7 @@ macro_rules! ok {
     };
 }
 
-macro_rules! ser_err {
+macro_rules! err {
     ($rust:expr, $err:expr) => {
         let err = konfig::to_string(&$rust).unwrap_err();
 
@@ -19,11 +19,7 @@ macro_rules! ser_err {
     };
 }
 
-macro_rules! tm {
-    () => {
-        BTreeMap::new()
-    };
-
+macro_rules! map {
     ($($k:expr => $v:expr),+) => {
         {
             let mut m = BTreeMap::new();
@@ -170,101 +166,109 @@ fn list_val() {
 
 #[test]
 fn tuple_value() {
-    ser_err!((5,), Error::TuplesUnsupported);
-    ser_err!((5, (6, "abc")), Error::TuplesUnsupported);
+    err!((5,), Error::TuplesUnsupported);
+    err!((5, (6, "abc")), Error::TuplesUnsupported);
 }
 
 #[test]
-#[ignore]
-fn object_value() {
+fn map_value() {
     ok! {
-        tm!["a" => true] => "> a = true"
+        map!["a" => true] => "> [a] = true"
     }
 
     ok! {
-        tm!["a" => true, "b" => false] => indoc! {"
-            > a = true
+        map!["a" => true, "b" => false] => indoc! {"
+            > [a] = true
 
-            > b = false
+            > [b] = false\
         "}
     }
 
     ok! {
-        tm!["a" => vec![], "b" => vec![], "c" => vec![]] as BTreeMap<_, Vec<()>> => indoc! {"
-            > a = []
+        map!["a" => vec![], "b" => vec![], "c" => vec![]] as BTreeMap<_, Vec<()>> => indoc! {"
+            > [a] = []
 
-            > b = []
+            > [b] = []
             
-            > c = []
+            > [c] = []\
         "}
     }
 
     ok! {
-        tm![
-            "a" => tm!["a" => vec![1, 2, 3], "b" => vec![]],
-            "b" => tm!["a" => vec![]],
-            "c" => tm!["a" => vec![]]
+        map![
+            "a" => map!["a" => vec![1, 2, 3], "b" => vec![]],
+            "b" => map!["a" => vec![]],
+            "c" => map!["a" => vec![]]
         ] => indoc! {"
-            > a > a = [1, 2, 3]
+            > [a] > [a] = [1, 2, 3]
 
-            > a > b = []
+            > [a] > [b] = []
             
-            > b > a = []
+            > [b] > [a] = []
             
-            > c > a = []
+            > [c] > [a] = []\
         "}
     }
 
     ok! {
-        tm![
-            "a" => tm!["a" => vec![]],
-            "b" => tm!["a" => vec![1, 2, 3], "b" => vec![]],
-            "c" => tm!["a" => vec![]]
+        map![
+            "a" => map!["a" => vec![]],
+            "b" => map!["a" => vec![1, 2, 3], "b" => vec![]],
+            "c" => map!["a" => vec![]]
         ] => indoc! {"
-            > a > a = []
+            > [a] > [a] = []
 
-            > b > a = [1, 2, 3]
+            > [b] > [a] = [1, 2, 3]
             
-            > b > b = []
+            > [b] > [b] = []
             
-            > c > a = []
+            > [c] > [a] = []\
         "}
     }
 
     ok! {
-        tm![
-            "a" => tm!["a" => vec![]],
-            "b" => tm!["a" => vec![]],
-            "c" => tm!["a" => vec![1, 2, 3], "b" => vec![]]
+        map![
+            "abc xyz" => map!["42" => vec![]],
+            "bc xyz" => map!["Hello world!" => vec![]],
+            "c xyz" => map!["a" => vec![1, 2, 3], "b" => vec![]]
         ] => indoc! {"
-            > a > a = []
+            > [abc xyz] > [42] = []
 
-            > b > b = []
+            > [bc xyz] > [Hello world!] = []
             
-            > c > a = [1, 2, 3]
+            > [c xyz] > [a] = [1, 2, 3]
             
-            > c > b = []
+            > [c xyz] > [b] = []\
         "}
     }
 
     ok! {
-        tm!["c" => ()] => "> c = none"
+        map!["c" => ()] => "> [c] = none"
     }
 
     ok! {
-        tm!["b" => vec![
-            tm!["c" => "\x0c\x1f\r"],
-            tm!["d" => ""]
-        ]] => indoc!{r#"
-            > b > c = "\f\u001f\r"
+        map!["b" => vec![
+            map!["c" => "\x0c\x1f\r"],
+            map!["d" => ""]
+        ]] => indoc!{"
+            > [b] > [0] > [c] = \"\\f\\u001f\\r\"
 
-            > b > d = "" 
-        "#}
+            > [b] > [1] > [d] = \"\"\
+        "}
+    }
+
+    ok! {
+        map![0u8 => (), 1u8 => (), 2u8 => ()] => indoc! {"
+            > [0] = none
+
+            > [1] = none
+            
+            > [2] = none\
+        "}
     }
 }
 
 #[test]
-#[ignore]
 fn enum_value() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
@@ -277,35 +281,10 @@ fn enum_value() {
 
     ok! { Animal::Dog => "> = `Dog`" };
 
-    ok! {
-        Animal::Frog("Henry".to_string(), vec![]) => indoc!{"
-            > = `Frog`
-
-            > Frog > [0] = \"Henry\"
-            
-            > Frog > [1] = []
-        "}
-    };
-
-    ok! {
-        Animal::Frog("Henry".to_string(), vec![349]) => indoc!{"
-            > = `Frog`
-
-            > Frog > [0] = \"Henry\"
-            
-            > Frog > [1] = [349]
-        "}
-    };
-
-    ok! {
-        Animal::Frog("Henry".to_string(), vec![349, 102]) => indoc!{"
-            > = `Frog`
-
-            > Frog > [0] = \"Henry\"
-            
-            > Frog > [1] = [349, 102]
-        "}
-    };
+    err!(
+        Animal::Frog("Henry".to_string(), vec![]),
+        Error::TuplesUnsupported
+    );
 
     ok! {
         Animal::Cat {
@@ -316,7 +295,7 @@ fn enum_value() {
 
             > Cat > age = 5
             
-            > Cat > name = \"Kate\"
+            > Cat > name = \"Kate\"\
         "}
     };
 
@@ -324,7 +303,7 @@ fn enum_value() {
         Animal::AntHive(vec!["Bob".to_string(), "Stuart".to_string()]) => indoc!{"
             > = `AntHive`
             
-            > AntHive = [\"Bob\", \"Stuart\"]
+            > AntHive = [\"Bob\", \"Stuart\"]\
         "}
     };
 }
