@@ -229,7 +229,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        todo!("UNSUPPORTED serialize_tuple")
+        Err(Error::TuplesUnsupported)
     }
 
     fn serialize_tuple_struct(
@@ -237,7 +237,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        todo!("UNSUPPORTED serialize_tuple_struct")
+        Err(Error::TuplesUnsupported)
     }
 
     fn serialize_tuple_variant(
@@ -247,15 +247,15 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        todo!("UNSUPPORTED serialize_tuple_variant")
+        Err(Error::TuplesUnsupported)
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         todo!();
     }
 
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        todo!();
     }
 
     fn serialize_struct_variant(

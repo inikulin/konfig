@@ -1,4 +1,5 @@
 use indoc::indoc;
+use konfig::error::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -7,6 +8,14 @@ macro_rules! ok {
         let serialized = konfig::to_string(&$rust).unwrap();
 
         assert_eq!(serialized, $kfg);
+    };
+}
+
+macro_rules! ser_err {
+    ($rust:expr, $err:expr) => {
+        let err = konfig::to_string(&$rust).unwrap_err();
+
+        assert_eq!(err, $err);
     };
 }
 
@@ -87,8 +96,8 @@ fn char_val() {
 
 #[test]
 fn bytes_val() {
-    ok! { 
-        std::ffi::CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]" 
+    ok! {
+        std::ffi::CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
     }
 }
 
@@ -157,6 +166,12 @@ fn list_val() {
             > [2] = [\"foo\\nbar\", \"3.5\"]\
         "}
     }
+}
+
+#[test]
+fn tuple_value() {
+    ser_err!((5,), Error::TuplesUnsupported);
+    ser_err!((5, (6, "abc")), Error::TuplesUnsupported);
 }
 
 #[test]
@@ -246,22 +261,6 @@ fn object_value() {
             > b > d = "" 
         "#}
     }
-}
-
-#[test]
-#[ignore]
-fn tuple_value() {
-    ok! { (5,) => "> [0] = 5" };
-
-    ok! {
-       (5, (6, "abc")) => indoc!{"
-            > [0] = 5
-
-            > [1] > [0] = 6
-
-            > [1] > [1] = \"abc\"
-        "}
-    };
 }
 
 #[test]

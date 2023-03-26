@@ -12,10 +12,7 @@ pub enum Value {
     Vec(Vec<Value>),
     Struct(IndexMap<String, Value>),
     Map(IndexMap<String, Value>),
-    EnumVariant {
-        name: String,
-        value: Box<Value>,
-    },
+    EnumVariant { name: String, value: Box<Value> },
 }
 
 impl Default for Value {

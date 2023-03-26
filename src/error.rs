@@ -1,9 +1,11 @@
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("map key should be a string or index")]
     InvalidMapKeyType,
+    #[error("tuples are unsupported")]
+    TuplesUnsupported,
     #[error("{0}")]
     Custom(String),
 }
