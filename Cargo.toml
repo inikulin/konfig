@@ -1,0 +1,15 @@
+[package]
+name = "konfig"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+serde = { version = "1.0.100", features = ["derive"] }
+indexmap = { version = "1.9.3", features = [ "serde-1" ] }
+itoa = "1.0.6"
+ryu = "1.0.13"
+thiserror = "1.0.40"
+
+[dev-dependencies]
+indoc = "2.0.1"
