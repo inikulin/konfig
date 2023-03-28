@@ -8,15 +8,15 @@ pub(crate) enum ValueKind {
     KvOnlyLeaf,
     Compound,
     NonUnitEnumVariant,
+    Unsupported,
 }
 
-// NOTE: we return as error to bail early where necessary and avoid implementing additional traits
 impl serde::ser::Error for ValueKind {
     fn custom<T>(_msg: T) -> Self
     where
         T: std::fmt::Display,
     {
-        Self::Compound
+        Self::Unsupported
     }
 }
 
@@ -34,6 +34,8 @@ impl Introspector {
 
 impl serde::Serializer for Introspector {
     type Ok = Infallible;
+    // NOTE: we return as error to bail early where necessary and avoid implementing
+    // additional traits
     type Error = ValueKind;
     type SerializeSeq = Self;
     type SerializeTuple = Impossible<Infallible, ValueKind>;
@@ -70,7 +72,7 @@ impl serde::Serializer for Introspector {
 
     #[inline]
     fn serialize_i128(self, _v: i128) -> Result<Infallible, ValueKind> {
-        Err(ValueKind::Leaf)
+        Err(ValueKind::Unsupported)
     }
 
     #[inline]
@@ -95,7 +97,7 @@ impl serde::Serializer for Introspector {
 
     #[inline]
     fn serialize_u128(self, _v: u128) -> Result<Infallible, ValueKind> {
-        Err(ValueKind::Leaf)
+        Err(ValueKind::Unsupported)
     }
 
     #[inline]
@@ -189,7 +191,7 @@ impl serde::Serializer for Introspector {
 
     #[inline]
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, ValueKind> {
-        Err(ValueKind::Compound)
+        Err(ValueKind::Unsupported)
     }
 
     #[inline]
@@ -198,7 +200,7 @@ impl serde::Serializer for Introspector {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct, ValueKind> {
-        Err(ValueKind::Compound)
+        Err(ValueKind::Unsupported)
     }
 
     #[inline]
@@ -209,7 +211,7 @@ impl serde::Serializer for Introspector {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant, ValueKind> {
-        Err(ValueKind::Compound)
+        Err(ValueKind::Unsupported)
     }
 
     #[inline]
@@ -304,7 +306,6 @@ mod tests {
         assert_leaf! {
             i8, i16, i32, i64, isize,
             u8, u16, u32, u64, usize,
-            i128, u128,
             f32, f64, char, bool, (),
             String, &str,
             NewTypeStruct<bool>,
@@ -324,10 +325,7 @@ mod tests {
 
         assert_compound! {
             vec![vec![1], vec![2], vec![3]],
-            (1, 2, 3),
             std::collections::BTreeMap::<String, String>::default(),
-            Variants::Tuple(0, 0),
-            Tuple::default(),
             Struct::default(),
             Some(42)
         }
@@ -363,5 +361,24 @@ mod tests {
             Introspector::val_kind(Variants::NewType(0)),
             ValueKind::NonUnitEnumVariant
         );
+    }
+
+    #[test]
+    fn unsupported_value() {
+        macro_rules! assert_unsupported {
+            ( $($val:expr),+ ) => {
+                $(
+                    assert_eq!(Introspector::val_kind($val), ValueKind::Unsupported);
+                )+
+            };
+        }
+
+        assert_unsupported! {
+            0i128,
+            0u128,
+            Variants::Tuple(0, 0),
+            (1, 2, false),
+            Tuple::default()
+        }
     }
 }

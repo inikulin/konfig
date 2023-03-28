@@ -38,12 +38,35 @@ impl<'o> Serializer<'o> {
         self.val_path.pop();
     }
 
+    fn with_path_key<T>(
+        &mut self,
+        key: impl Into<Cow<'static, str>>,
+        f: impl Fn(&mut Self) -> T,
+    ) -> T {
+        self.push_path(key);
+
+        let res = f(self);
+
+        self.pop_path();
+
+        res
+    }
+
+    fn without_val_path_serialization<T>(&mut self, f: impl Fn(&mut Self) -> T) -> T {
+        self.skip_val_path_serialization = true;
+
+        let res = f(self);
+
+        self.skip_val_path_serialization = false;
+
+        res
+    }
+
     fn with_output<T>(&mut self, out: &mut String, f: impl Fn(&mut Self) -> T) -> T {
         // SAFETY: it's safe to extend `out` lifetime here as we don't store the reference for
         // longer than this method call.
         let out: &'o mut String = unsafe { std::mem::transmute(out) };
         let prev_out = std::mem::replace(&mut self.out, out);
-
         let res = f(self);
 
         self.out = prev_out;
@@ -51,7 +74,7 @@ impl<'o> Serializer<'o> {
         res
     }
 
-    fn serialize_val_path(&mut self) {
+    fn write_val_path(&mut self) {
         if self.skip_val_path_serialization {
             return;
         }
@@ -82,7 +105,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     type SerializeStructVariant = KVSerializer<'s, 'o>;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         self.out.push_str(if v { "true" } else { "false" });
 
         Ok(())
@@ -104,7 +127,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         utils::write_int(self.out, v);
 
         Ok(())
@@ -126,7 +149,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         utils::write_int(self.out, v);
 
         Ok(())
@@ -138,7 +161,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         utils::write_float(self.out, v);
 
         Ok(())
@@ -152,7 +175,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     fn serialize_str(self, v: &str) -> Result<()> {
         let mut start = 0;
 
-        self.serialize_val_path();
+        self.write_val_path();
         self.out.push('"');
 
         for (i, c) in v.char_indices() {
@@ -188,7 +211,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_unit(self) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         self.out.push_str("none");
 
         Ok(())
@@ -204,7 +227,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         self.out.push('`');
         self.out.push_str(variant);
         self.out.push('`');
@@ -230,12 +253,8 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         T: ?Sized + Serialize,
     {
         self.serialize_unit_variant(name, variant_index, variant)?;
-        self.push_path(variant);
         self.new_line();
-
-        value.serialize(&mut *self)?;
-
-        self.pop_path();
+        self.with_path_key(variant, |serializer| value.serialize(serializer))?;
 
         Ok(())
     }
@@ -245,7 +264,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.serialize_val_path();
+        self.write_val_path();
         self.out.push('[');
 
         for (i, byte) in v.iter().enumerate() {
@@ -328,17 +347,14 @@ impl<'s, 'o> SeqSerializer<'s, 'o> {
         T: ?Sized + Serialize,
     {
         if self.current_index == 0 {
-            self.serializer.serialize_val_path();
+            self.serializer.write_val_path();
             self.serializer.out.push('[');
         } else {
             self.serializer.out.push_str(", ");
         }
 
-        self.serializer.skip_val_path_serialization = true;
-
-        value.serialize(&mut *self.serializer)?;
-
-        self.serializer.skip_val_path_serialization = false;
+        self.serializer
+            .without_val_path_serialization(|serializer| value.serialize(serializer))?;
 
         Ok(())
     }
@@ -352,17 +368,15 @@ impl<'s, 'o> SeqSerializer<'s, 'o> {
         }
 
         self.serializer
-            .push_path(format!("[{}]", self.current_index));
-
-        value.serialize(&mut *self.serializer)?;
-
-        self.serializer.pop_path();
+            .with_path_key(format!("[{}]", self.current_index), |serializer| {
+                value.serialize(serializer)
+            })?;
 
         Ok(())
     }
 
     fn serialize_empty(&mut self) {
-        self.serializer.serialize_val_path();
+        self.serializer.write_val_path();
         self.serializer.out.push_str("[]");
     }
 }
