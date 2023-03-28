@@ -2,18 +2,20 @@ use super::utils;
 use crate::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
 
-pub(crate) fn serialize(v: impl Serialize) -> Result<String> {
-    let mut key = String::with_capacity(16);
-
-    key.push('[');
-    v.serialize(MapKeySerializer { out: &mut key })?;
-    key.push(']');
-
-    Ok(key)
+pub(crate) struct MapKeySerializer<'o> {
+    out: &'o mut String,
 }
 
-struct MapKeySerializer<'o> {
-    out: &'o mut String,
+impl<'o> MapKeySerializer<'o> {
+    pub(crate) fn serialize(v: impl Serialize) -> Result<String> {
+        let mut key = String::with_capacity(16);
+
+        key.push('[');
+        v.serialize(MapKeySerializer { out: &mut key })?;
+        key.push(']');
+
+        Ok(key)
+    }
 }
 
 impl<'o> serde::Serializer for MapKeySerializer<'o> {

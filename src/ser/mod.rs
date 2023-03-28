@@ -1,9 +1,10 @@
-mod basic_value;
+mod introspector;
 mod map_key;
 mod utils;
 
+use self::introspector::{Introspector, ValueKind};
+use self::map_key::MapKeySerializer;
 use crate::error::{Error, Result};
-use basic_value::is_basic_value;
 use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
 
@@ -35,6 +36,19 @@ impl<'o> Serializer<'o> {
     #[inline]
     fn pop_path(&mut self) {
         self.val_path.pop();
+    }
+
+    fn with_output<T>(&mut self, out: &mut String, f: impl Fn(&mut Self) -> T) -> T {
+        // SAFETY: it's safe to extend `out` lifetime here as we don't store the reference for
+        // longer than this method call.
+        let out: &'o mut String = unsafe { std::mem::transmute(out) };
+        let prev_out = std::mem::replace(&mut self.out, out);
+
+        let res = f(self);
+
+        self.out = prev_out;
+
+        res
     }
 
     fn serialize_val_path(&mut self) {
@@ -219,7 +233,11 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         self.push_path(variant);
         self.new_line();
 
-        value.serialize(self)
+        value.serialize(&mut *self)?;
+
+        self.pop_path();
+
+        Ok(())
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -267,12 +285,12 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Ok(KVSerializer::new(self))
+        Ok(KVSerializer::new(self, false))
     }
 
     #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(KVSerializer::new(self))
+        Ok(KVSerializer::new(self, false))
     }
 
     fn serialize_struct_variant(
@@ -286,14 +304,14 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         self.push_path(variant);
         self.new_line();
 
-        Ok(KVSerializer::new(self))
+        Ok(KVSerializer::new(self, true))
     }
 }
 
 pub struct SeqSerializer<'s, 'o> {
     serializer: &'s mut Serializer<'o>,
     current_index: usize,
-    is_basic_values: bool,
+    is_leaf_values: bool,
 }
 
 impl<'s, 'o> SeqSerializer<'s, 'o> {
@@ -301,11 +319,11 @@ impl<'s, 'o> SeqSerializer<'s, 'o> {
         Self {
             serializer,
             current_index: 0,
-            is_basic_values: false,
+            is_leaf_values: false,
         }
     }
 
-    fn serialize_basic_value_element<T>(&mut self, value: &T) -> Result<()>
+    fn serialize_leaf_value_element<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
@@ -358,11 +376,11 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
         T: ?Sized + Serialize,
     {
         if self.current_index == 0 {
-            self.is_basic_values = is_basic_value(value);
+            self.is_leaf_values = Introspector::val_kind(value) == ValueKind::Leaf;
         }
 
-        if self.is_basic_values {
-            self.serialize_basic_value_element(value)?;
+        if self.is_leaf_values {
+            self.serialize_leaf_value_element(value)?;
         } else {
             self.serialize_compound_value_element(value)?;
         }
@@ -377,7 +395,7 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
 
         if was_empty {
             self.serialize_empty();
-        } else if self.is_basic_values {
+        } else if self.is_leaf_values {
             self.serializer.out.push(']');
         }
 
@@ -387,14 +405,18 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
 
 pub struct KVSerializer<'s, 'o> {
     serializer: &'s mut Serializer<'o>,
-    current_index: usize,
+    leaf_values_out: String,
+    compound_values_out: String,
+    pop_path_on_completion: bool,
 }
 
 impl<'s, 'o> KVSerializer<'s, 'o> {
-    fn new(serializer: &'s mut Serializer<'o>) -> Self {
+    fn new(serializer: &'s mut Serializer<'o>, pop_path_on_completion: bool) -> Self {
         Self {
             serializer,
-            current_index: 0,
+            leaf_values_out: "".into(),
+            compound_values_out: "".into(),
+            pop_path_on_completion,
         }
     }
 }
@@ -407,7 +429,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.serializer.push_path(map_key::serialize(key)?);
+        self.serializer.push_path(MapKeySerializer::serialize(key)?);
 
         Ok(())
     }
@@ -416,20 +438,41 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        if self.current_index > 0 {
-            self.serializer.new_line();
-        }
+        let val_kind = Introspector::val_kind(value);
 
-        value.serialize(&mut *self.serializer)?;
+        let out = if val_kind == ValueKind::Leaf || val_kind == ValueKind::KvOnlyLeaf {
+            &mut self.leaf_values_out
+        } else {
+            &mut self.compound_values_out
+        };
+
+        self.serializer.with_output(out, |serializer| {
+            if !serializer.out.is_empty() {
+                serializer.new_line();
+            }
+
+            value.serialize(serializer)
+        })?;
+
         self.serializer.pop_path();
-
-        self.current_index += 1;
 
         Ok(())
     }
 
     #[inline]
     fn end(self) -> Result<()> {
+        self.serializer.out.push_str(&self.leaf_values_out);
+
+        if !self.leaf_values_out.is_empty() && !self.compound_values_out.is_empty() {
+            self.serializer.new_line();
+        }
+
+        self.serializer.out.push_str(&self.compound_values_out);
+
+        if self.pop_path_on_completion {
+            self.serializer.pop_path();
+        }
+
         Ok(())
     }
 }
@@ -443,12 +486,13 @@ impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
         T: ?Sized + Serialize,
     {
         self.serializer.push_path(key);
+
         serde::ser::SerializeMap::serialize_value(self, value)
     }
 
     #[inline]
     fn end(self) -> Result<()> {
-        Ok(())
+        serde::ser::SerializeMap::end(self)
     }
 }
 
@@ -466,6 +510,6 @@ impl<'s, 'o> serde::ser::SerializeStructVariant for KVSerializer<'s, 'o> {
 
     #[inline]
     fn end(self) -> Result<()> {
-        Ok(())
+        serde::ser::SerializeMap::end(self)
     }
 }

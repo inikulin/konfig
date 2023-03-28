@@ -21,6 +21,9 @@ struct ComplexData {
     /// An integer value.
     integer: i32,
 
+    /// A list of numbers .
+    numbers: Vec<usize>,
+
     /// A floating-point value.
     float: f32,
 
@@ -180,6 +183,7 @@ fn serialize_complex_structure() {
         },
         boolean: true,
         integer: 123,
+        numbers: vec![1, 2, 3],
         float: 3.1415,
         string: "rust is awesome".to_string(),
         character: 'c',
@@ -193,6 +197,8 @@ fn serialize_complex_structure() {
     };
 
     let serialized = konfig::to_string(&val).unwrap();
+
+    println!("{serialized}");
 
     assert_eq!(
         serialized,
