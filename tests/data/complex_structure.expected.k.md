@@ -1,3 +1,5 @@
+> values = `Array`
+
 > boolean = true
 
 > integer = 123
@@ -14,6 +16,8 @@
 
 > ipv6_address = "::1"
 
+> structure_variant = `Variant`
+
 > unit_variant = `Variant`
 
 > items > items > [0] > name = "item1"
@@ -24,17 +28,15 @@
 
 > items > items > [1] > value = 20
 
-> values = `Array`
-
 > values > Array > [0] = `Integer`
-
-> values > Array > [0] > Integer = 1
 
 > values > Array > [1] = `String`
 
-> values > Array > [1] > String = "two"
-
 > values > Array > [2] = `Float`
+
+> values > Array > [0] > Integer = 1
+
+> values > Array > [1] > String = "two"
 
 > values > Array > [2] > Float = 3.140000104904175
 
@@ -55,8 +57,6 @@
 > properties > properties > [prop3] > value = `String`
 
 > properties > properties > [prop3] > value > String = "hello"
-
-> structure_variant = `Variant`
 
 > structure_variant > Variant > name = "variant"
 
