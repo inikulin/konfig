@@ -47,42 +47,18 @@ impl<'o> Serializer<'o> {
     }
 
     #[inline]
-    fn new_line(&mut self) {
-        self.out.push_str("\n\n");
-    }
-
-    #[inline]
     fn push_path(&mut self, key: impl Into<Cow<'static, str>>) {
         self.val_path.borrow_mut().push(key.into());
     }
 
     #[inline]
+    fn push_enum_variant_path(&mut self, variant: &str) {
+        self.push_path(format!("`{variant}`"));
+    }
+
+    #[inline]
     fn pop_path(&mut self) {
         self.val_path.borrow_mut().pop();
-    }
-
-    fn with_path_key<T>(
-        &mut self,
-        key: impl Into<Cow<'static, str>>,
-        f: impl Fn(&mut Self) -> T,
-    ) -> T {
-        self.push_path(key);
-
-        let res = f(self);
-
-        self.pop_path();
-
-        res
-    }
-
-    fn without_val_path_serialization<T>(&mut self, f: impl Fn(&mut Self) -> T) -> T {
-        self.skip_val_path_serialization = true;
-
-        let res = f(self);
-
-        self.skip_val_path_serialization = false;
-
-        res
     }
 
     fn serialize_with_output(
@@ -97,16 +73,16 @@ impl<'o> Serializer<'o> {
             enum_serialization_mode: self.enum_serialization_mode,
         };
 
-        if !serializer.out.is_empty() {
-            serializer.new_line();
-        }
-
         value.serialize(&mut serializer)
     }
 
     fn write_val_path(&mut self) {
         if self.skip_val_path_serialization {
             return;
+        }
+
+        if !self.out.is_empty() {
+            self.out.push_str("\n\n");
         }
 
         let val_path = self.val_path.borrow();
@@ -122,6 +98,14 @@ impl<'o> Serializer<'o> {
         }
 
         self.out.push_str("= ");
+    }
+
+    fn merge_output(&mut self, other: &str) {
+        if !self.out.is_empty() && !other.is_empty() {
+            self.out.push_str("\n\n");
+        }
+
+        self.out.push_str(other);
     }
 }
 
@@ -284,16 +268,16 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        if self.enum_serialization_mode.serialize_assignment() {
-            self.serialize_unit_variant(name, variant_index, variant)?;
-        }
-
-        if self.enum_serialization_mode == EnumVariantSerializationMode::Full {
-            self.new_line();
+        if Introspector::val_kind(value) != ValueKind::Leaf {
+            if self.enum_serialization_mode.serialize_assignment() {
+                self.serialize_unit_variant(name, variant_index, variant)?;
+            }
         }
 
         if self.enum_serialization_mode.serialize_payload() {
-            self.with_path_key(variant, |serializer| value.serialize(serializer))?;
+            self.push_enum_variant_path(variant);
+            value.serialize(&mut *self)?;
+            self.pop_path();
         }
 
         Ok(())
@@ -363,12 +347,8 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
             self.serialize_unit_variant(name, variant_index, variant)?;
         }
 
-        if self.enum_serialization_mode == EnumVariantSerializationMode::Full {
-            self.new_line();
-        }
-
         let kv_ser_mode = if self.enum_serialization_mode.serialize_payload() {
-            self.push_path(variant);
+            self.push_enum_variant_path(variant);
 
             KVSerializerMode::WithPathPopOnCompletion
         } else {
@@ -446,8 +426,9 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
                     serializer.out.push_str(", ");
                 }
 
-                serializer
-                    .without_val_path_serialization(|serializer| value.serialize(serializer))?;
+                serializer.skip_val_path_serialization = true;
+                value.serialize(&mut **serializer)?;
+                serializer.skip_val_path_serialization = false;
             }
             _ => unreachable!(),
         }
@@ -481,7 +462,6 @@ enum KVSerializerMode {
 
 pub struct KVSerializer<'s, 'o> {
     serializer: &'s mut Serializer<'o>,
-    leaf_values_out: String,
     enum_values_out: String,
     compound_values_out: String,
     mode: KVSerializerMode,
@@ -491,7 +471,6 @@ impl<'s, 'o> KVSerializer<'s, 'o> {
     fn new(serializer: &'s mut Serializer<'o>, mode: KVSerializerMode) -> Self {
         Self {
             serializer,
-            leaf_values_out: "".into(),
             enum_values_out: "".into(),
             compound_values_out: "".into(),
             mode,
@@ -523,17 +502,14 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
         }
 
         match Introspector::val_kind(value) {
-            ValueKind::Leaf | ValueKind::KvOnlyLeaf => self
-                .serializer
-                .serialize_with_output(&mut self.leaf_values_out, value)?,
+            ValueKind::Leaf | ValueKind::KvOnlyLeaf => value.serialize(&mut *self.serializer)?,
             ValueKind::NonUnitEnumVariant => {
                 // NOTE: serialize assignment of the variant along with the rest of leaf values,
                 // but move payload to the compound values block.
                 self.serializer.enum_serialization_mode =
                     EnumVariantSerializationMode::AssignmentOnly;
 
-                self.serializer
-                    .serialize_with_output(&mut self.leaf_values_out, value)?;
+                value.serialize(&mut *self.serializer)?;
 
                 self.serializer.enum_serialization_mode = EnumVariantSerializationMode::PayloadOnly;
 
@@ -556,19 +532,8 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
             return Ok(());
         }
 
-        self.serializer.out.push_str(&self.leaf_values_out);
-
-        if !self.leaf_values_out.is_empty() && !self.enum_values_out.is_empty() {
-            self.serializer.new_line();
-        }
-
-        self.serializer.out.push_str(&self.enum_values_out);
-
-        if !self.enum_values_out.is_empty() && !self.compound_values_out.is_empty() {
-            self.serializer.new_line();
-        }
-
-        self.serializer.out.push_str(&self.compound_values_out);
+        self.serializer.merge_output(&self.enum_values_out);
+        self.serializer.merge_output(&self.compound_values_out);
 
         if self.mode == KVSerializerMode::WithPathPopOnCompletion {
             self.serializer.pop_path();

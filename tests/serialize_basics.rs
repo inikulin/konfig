@@ -293,9 +293,9 @@ fn enum_value() {
         } => indoc!{"
             > = `Cat`
 
-            > Cat > age = 5
+            > `Cat` > age = 5
             
-            > Cat > name = \"Kate\"\
+            > `Cat` > name = \"Kate\"\
         "}
     };
 
@@ -303,7 +303,7 @@ fn enum_value() {
         Animal::AntHive(vec!["Bob".to_string(), "Stuart".to_string()]) => indoc!{"
             > = `AntHive`
             
-            > AntHive = [\"Bob\", \"Stuart\"]\
+            > `AntHive` = [\"Bob\", \"Stuart\"]\
         "}
     };
 }

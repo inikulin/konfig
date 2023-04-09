@@ -20,21 +20,15 @@
 
 > unit_variant = `Variant`
 
-> values > Array > [0] = `Integer`
+> values > `Array` > [0] > `Integer` = 1
 
-> values > Array > [1] = `String`
+> values > `Array` > [1] > `String` = "two"
 
-> values > Array > [2] = `Float`
+> values > `Array` > [2] > `Float` = 3.140000104904175
 
-> values > Array > [0] > Integer = 1
+> structure_variant > `Variant` > name = "variant"
 
-> values > Array > [1] > String = "two"
-
-> values > Array > [2] > Float = 3.140000104904175
-
-> structure_variant > Variant > name = "variant"
-
-> structure_variant > Variant > value = 42
+> structure_variant > `Variant` > value = 42
 
 > items > items > [0] > name = "item1"
 
@@ -46,18 +40,12 @@
 
 > properties > properties > [prop1] > name = "prop1"
 
-> properties > properties > [prop1] > value = `Boolean`
-
-> properties > properties > [prop1] > value > Boolean = true
+> properties > properties > [prop1] > value > `Boolean` = true
 
 > properties > properties > [prop2] > name = "prop2"
 
-> properties > properties > [prop2] > value = `Integer`
-
-> properties > properties > [prop2] > value > Integer = 42
+> properties > properties > [prop2] > value > `Integer` = 42
 
 > properties > properties > [prop3] > name = "prop3"
 
-> properties > properties > [prop3] > value = `String`
-
-> properties > properties > [prop3] > value > String = "hello"
+> properties > properties > [prop3] > value > `String` = "hello"
