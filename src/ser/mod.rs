@@ -7,6 +7,8 @@ use self::map_key::MapKeySerializer;
 use crate::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(PartialEq, Copy, Clone)]
 enum EnumVariantSerializationMode {
@@ -28,7 +30,7 @@ impl EnumVariantSerializationMode {
 }
 
 pub struct Serializer<'o> {
-    val_path: Vec<Cow<'static, str>>,
+    val_path: Rc<RefCell<Vec<Cow<'static, str>>>>,
     out: &'o mut String,
     skip_val_path_serialization: bool,
     enum_serialization_mode: EnumVariantSerializationMode,
@@ -37,7 +39,7 @@ pub struct Serializer<'o> {
 impl<'o> Serializer<'o> {
     pub fn new(out: &'o mut String) -> Self {
         Self {
-            val_path: vec![],
+            val_path: Rc::new(RefCell::new(vec![])),
             out,
             skip_val_path_serialization: false,
             enum_serialization_mode: EnumVariantSerializationMode::Full,
@@ -51,12 +53,12 @@ impl<'o> Serializer<'o> {
 
     #[inline]
     fn push_path(&mut self, key: impl Into<Cow<'static, str>>) {
-        self.val_path.push(key.into());
+        self.val_path.borrow_mut().push(key.into());
     }
 
     #[inline]
     fn pop_path(&mut self) {
-        self.val_path.pop();
+        self.val_path.borrow_mut().pop();
     }
 
     fn with_path_key<T>(
@@ -84,41 +86,22 @@ impl<'o> Serializer<'o> {
     }
 
     fn serialize_with_output(
-        &mut self,
+        &self,
         out: &mut String,
         value: &(impl Serialize + ?Sized),
     ) -> Result<()> {
-        // SAFETY: it's safe to extend `out` lifetime here as we don't store the reference for
-        // longer than this method call.
-        let out: &'o mut String = unsafe { std::mem::transmute(out) };
-        let prev_out = std::mem::replace(&mut self.out, out);
+        let mut serializer = Serializer {
+            val_path: Rc::clone(&self.val_path),
+            out,
+            skip_val_path_serialization: self.skip_val_path_serialization,
+            enum_serialization_mode: self.enum_serialization_mode,
+        };
 
-        if !self.out.is_empty() {
-            self.new_line();
+        if !serializer.out.is_empty() {
+            serializer.new_line();
         }
 
-        let res = value.serialize(&mut *self);
-
-        self.out = prev_out;
-
-        res
-    }
-
-    fn serialize_enum_variant(
-        &mut self,
-        out: &mut String,
-        mode: EnumVariantSerializationMode,
-        value: &(impl Serialize + ?Sized),
-    ) -> Result<()> {
-        let prev_mode = self.enum_serialization_mode;
-
-        self.enum_serialization_mode = mode;
-
-        let res = self.serialize_with_output(out, value);
-
-        self.enum_serialization_mode = prev_mode;
-
-        res
+        value.serialize(&mut serializer)
     }
 
     fn write_val_path(&mut self) {
@@ -126,10 +109,12 @@ impl<'o> Serializer<'o> {
             return;
         }
 
-        if self.val_path.is_empty() {
+        let val_path = self.val_path.borrow();
+
+        if val_path.is_empty() {
             self.out.push_str("> ");
         } else {
-            for key in &self.val_path {
+            for key in &*val_path {
                 self.out.push_str("> ");
                 self.out.push_str(key);
                 self.out.push(' ');
@@ -544,17 +529,16 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
             ValueKind::NonUnitEnumVariant => {
                 // NOTE: serialize assignment of the variant along with the rest of leaf values,
                 // but move payload to the compound values block.
-                self.serializer.serialize_enum_variant(
-                    &mut self.leaf_values_out,
-                    EnumVariantSerializationMode::AssignmentOnly,
-                    value,
-                )?;
+                self.serializer.enum_serialization_mode =
+                    EnumVariantSerializationMode::AssignmentOnly;
 
-                self.serializer.serialize_enum_variant(
-                    &mut self.enum_values_out,
-                    EnumVariantSerializationMode::PayloadOnly,
-                    value,
-                )?;
+                self.serializer
+                    .serialize_with_output(&mut self.leaf_values_out, value)?;
+
+                self.serializer.enum_serialization_mode = EnumVariantSerializationMode::PayloadOnly;
+
+                self.serializer
+                    .serialize_with_output(&mut self.enum_values_out, value)?;
             }
             _ => self
                 .serializer
