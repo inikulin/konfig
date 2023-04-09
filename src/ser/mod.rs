@@ -8,11 +8,6 @@ use crate::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
 
-// TODO
-// 1. Get rid of leaf value serializer - write directly to output
-// 2. Re-use KVSerializer for non-inline seq
-// 3. Enum variant serialization mode - nested stuff
-
 #[derive(PartialEq, Copy, Clone)]
 enum EnumVariantSerializationMode {
     Full,
@@ -502,6 +497,7 @@ enum KVSerializerMode {
 pub struct KVSerializer<'s, 'o> {
     serializer: &'s mut Serializer<'o>,
     leaf_values_out: String,
+    enum_values_out: String,
     compound_values_out: String,
     mode: KVSerializerMode,
 }
@@ -511,6 +507,7 @@ impl<'s, 'o> KVSerializer<'s, 'o> {
         Self {
             serializer,
             leaf_values_out: "".into(),
+            enum_values_out: "".into(),
             compound_values_out: "".into(),
             mode,
         }
@@ -554,7 +551,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
                 )?;
 
                 self.serializer.serialize_enum_variant(
-                    &mut self.compound_values_out,
+                    &mut self.enum_values_out,
                     EnumVariantSerializationMode::PayloadOnly,
                     value,
                 )?;
@@ -577,7 +574,13 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
 
         self.serializer.out.push_str(&self.leaf_values_out);
 
-        if !self.leaf_values_out.is_empty() && !self.compound_values_out.is_empty() {
+        if !self.leaf_values_out.is_empty() && !self.enum_values_out.is_empty() {
+            self.serializer.new_line();
+        }
+
+        self.serializer.out.push_str(&self.enum_values_out);
+
+        if !self.enum_values_out.is_empty() && !self.compound_values_out.is_empty() {
             self.serializer.new_line();
         }
 
