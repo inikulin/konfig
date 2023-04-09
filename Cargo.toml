@@ -13,3 +13,4 @@ thiserror = "1.0.40"
 
 [dev-dependencies]
 indoc = "2.0.1"
+serde_yaml = "0.9.21"

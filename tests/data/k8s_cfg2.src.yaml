@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+        - name: frontend
+          image: my-frontend-image:v1.0.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: DB_HOST
+              value: db-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          volumeMounts:
+            - name: frontend-config
+              mountPath: /usr/src/app/config
+            - name: shared-data
+              mountPath: /usr/src/app/data
+        - name: backend
+          image: my-backend-image:v1.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: db-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          volumeMounts:
+            - name: backend-config
+              mountPath: /usr/src/app/config
+            - name: shared-data
+              mountPath: /usr/src/app/data
+        - name: job-worker
+          image: my-job-worker-image:v1.0.0
+          env:
+            - name: DB_HOST
+              value: db-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          volumeMounts:
+            - name: job-worker-config
+              mountPath: /usr/src/app/config
+            - name: shared-data
+              mountPath: /usr/src/app/data
+      volumes:
+        - name: frontend-config
+          configMap:
+            name: frontend-config
+        - name: backend-config
+          configMap:
+            name: backend-config
+        - name: job-worker-config
+          configMap:
+            name: job-worker-config
+        - name: shared-data
+          persistentVolumeClaim:
+            claimName: shared-data-pvc

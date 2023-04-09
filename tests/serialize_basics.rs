@@ -33,7 +33,7 @@ macro_rules! map {
 
 #[test]
 fn none_val() {
-    ok! { () => "> = none" }
+    ok! { () => "" }
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn map_value() {
     }
 
     ok! {
-        map!["c" => ()] => "> [c] = none"
+        map!["c" => ()] => ""
     }
 
     ok! {
@@ -258,13 +258,7 @@ fn map_value() {
     }
 
     ok! {
-        map![0u8 => (), 1u8 => (), 2u8 => ()] => indoc! {"
-            > [0] = none
-
-            > [1] = none
-            
-            > [2] = none\
-        "}
+        map![0u8 => (), 1u8 => (), 2u8 => ()] => ""
     }
 }
 

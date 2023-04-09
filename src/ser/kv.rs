@@ -55,8 +55,6 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
         match Introspector::val_kind(value) {
             ValueKind::Leaf | ValueKind::KvOnlyLeaf => value.serialize(&mut *self.serializer)?,
             ValueKind::NonUnitEnumVariant => {
-                // NOTE: serialize assignment of the variant along with the rest of leaf values,
-                // but move payload to the compound values block.
                 self.serializer.enum_serialization_mode =
                     EnumVariantSerializationMode::AssignmentOnly;
 

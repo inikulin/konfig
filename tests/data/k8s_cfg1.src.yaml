@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: complex-deployment
+  labels:
+    app: complex-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: complex-app
+  template:
+    metadata:
+      labels:
+        app: complex-app
+    spec:
+      containers:
+        - name: main-container
+          image: myregistry.com/complex-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: db-host
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: db-port
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: db-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: db-password
+            - name: APP_CONFIG
+              value: '{"foo": "bar", "baz": "qux"}'
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/app-config
+            - name: data-volume
+              mountPath: /var/data
+        - name: sidecar-container
+          image: myregistry.com/sidecar:latest
+          imagePullPolicy: Always
+          env:
+            - name: APP_CONFIG
+              value: '{"foo": "bar", "baz": "qux"}'
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/app-config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: app-config
+        - name: data-volume
+          emptyDir: {}
+      imagePullSecrets:
+        - name: registry-secret
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+        capabilities:
+          add:
+            - NET_ADMIN
+            - SYS_TIME
+      nodeSelector:
+        disktype: ssd
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - complex-app
+              topologyKey: kubernetes.io/hostname
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - complex-app
+              topologyKey: kubernetes.io/hostname
+            - labelSelector:
+                matchExpressions:
+                  - key: zone
+                    operator: In
+                    values:
+                      - zone1
+                      - zone2
+              topologyKey: failure-domain.beta.kubernetes.io/zone
