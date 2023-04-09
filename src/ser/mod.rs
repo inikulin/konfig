@@ -1,10 +1,13 @@
 mod introspector;
+mod kv;
 mod map_key;
+mod seq;
 mod utils;
 
 use self::introspector::{Introspector, ValueKind};
-use self::map_key::MapKeySerializer;
+use self::kv::{KVSerializer, KVSerializerMode};
 use crate::error::{Error, Result};
+use seq::SeqSerializer;
 use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -268,10 +271,10 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        if Introspector::val_kind(value) != ValueKind::Leaf {
-            if self.enum_serialization_mode.serialize_assignment() {
-                self.serialize_unit_variant(name, variant_index, variant)?;
-            }
+        if Introspector::val_kind(value) != ValueKind::Leaf
+            && self.enum_serialization_mode.serialize_assignment()
+        {
+            self.serialize_unit_variant(name, variant_index, variant)?;
         }
 
         if self.enum_serialization_mode.serialize_payload() {
@@ -356,230 +359,5 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         };
 
         Ok(KVSerializer::new(self, kv_ser_mode))
-    }
-}
-
-enum SeqRepresentation<'s, 'o> {
-    // NOTE: wrapped in `Option`, so we can convert to KV without resorting to unsafe code.
-    Inline(Option<&'s mut Serializer<'o>>),
-    Kv(KVSerializer<'s, 'o>),
-}
-
-impl<'s, 'o> SeqRepresentation<'s, 'o> {
-    fn serialize_empty(&mut self) {
-        let serializer = match self {
-            Self::Inline(Some(ref mut s)) => s,
-            Self::Kv(s) => &mut *s.serializer,
-            _ => unreachable!(),
-        };
-
-        serializer.write_val_path();
-        serializer.out.push_str("[]");
-    }
-
-    fn into_kv(&mut self) {
-        let serializer = match self {
-            Self::Inline(s) => s.take().expect("should have inline serializer"),
-            _ => return,
-        };
-
-        *self = SeqRepresentation::Kv(KVSerializer::new(serializer, KVSerializerMode::Default));
-    }
-}
-
-pub struct SeqSerializer<'s, 'o> {
-    repr: SeqRepresentation<'s, 'o>,
-    current_index: usize,
-}
-
-impl<'s, 'o> SeqSerializer<'s, 'o> {
-    fn new(serializer: &'s mut Serializer<'o>) -> Self {
-        Self {
-            repr: SeqRepresentation::Inline(Some(serializer)),
-            current_index: 0,
-        }
-    }
-}
-
-impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        if self.current_index == 0 && Introspector::val_kind(value) != ValueKind::Leaf {
-            self.repr.into_kv();
-        }
-
-        match self.repr {
-            SeqRepresentation::Kv(ref mut serializer) => {
-                serde::ser::SerializeMap::serialize_key(serializer, &self.current_index)?;
-                serde::ser::SerializeMap::serialize_value(serializer, value)?;
-            }
-            SeqRepresentation::Inline(Some(ref mut serializer)) => {
-                if self.current_index == 0 {
-                    serializer.write_val_path();
-                    serializer.out.push('[');
-                } else {
-                    serializer.out.push_str(", ");
-                }
-
-                serializer.skip_val_path_serialization = true;
-                value.serialize(&mut **serializer)?;
-                serializer.skip_val_path_serialization = false;
-            }
-            _ => unreachable!(),
-        }
-
-        self.current_index += 1;
-
-        Ok(())
-    }
-
-    fn end(mut self) -> Result<()> {
-        if self.current_index == 0 {
-            self.repr.serialize_empty();
-        } else {
-            match self.repr {
-                SeqRepresentation::Kv(serializer) => serde::ser::SerializeStruct::end(serializer)?,
-                SeqRepresentation::Inline(Some(serializer)) => serializer.out.push(']'),
-                _ => unreachable!(),
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(PartialEq)]
-enum KVSerializerMode {
-    Default,
-    WithPathPopOnCompletion,
-    Noop,
-}
-
-pub struct KVSerializer<'s, 'o> {
-    serializer: &'s mut Serializer<'o>,
-    enum_values_out: String,
-    compound_values_out: String,
-    mode: KVSerializerMode,
-}
-
-impl<'s, 'o> KVSerializer<'s, 'o> {
-    fn new(serializer: &'s mut Serializer<'o>, mode: KVSerializerMode) -> Self {
-        Self {
-            serializer,
-            enum_values_out: "".into(),
-            compound_values_out: "".into(),
-            mode,
-        }
-    }
-}
-
-impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        if self.mode != KVSerializerMode::Noop {
-            self.serializer.push_path(MapKeySerializer::serialize(key)?);
-        }
-
-        Ok(())
-    }
-
-    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
-        match Introspector::val_kind(value) {
-            ValueKind::Leaf | ValueKind::KvOnlyLeaf => value.serialize(&mut *self.serializer)?,
-            ValueKind::NonUnitEnumVariant => {
-                // NOTE: serialize assignment of the variant along with the rest of leaf values,
-                // but move payload to the compound values block.
-                self.serializer.enum_serialization_mode =
-                    EnumVariantSerializationMode::AssignmentOnly;
-
-                value.serialize(&mut *self.serializer)?;
-
-                self.serializer.enum_serialization_mode = EnumVariantSerializationMode::PayloadOnly;
-
-                self.serializer
-                    .serialize_with_output(&mut self.enum_values_out, value)?;
-            }
-            _ => self
-                .serializer
-                .serialize_with_output(&mut self.compound_values_out, value)?,
-        }
-
-        self.serializer.pop_path();
-
-        Ok(())
-    }
-
-    #[inline]
-    fn end(self) -> Result<()> {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
-        self.serializer.merge_output(&self.enum_values_out);
-        self.serializer.merge_output(&self.compound_values_out);
-
-        if self.mode == KVSerializerMode::WithPathPopOnCompletion {
-            self.serializer.pop_path();
-        }
-
-        Ok(())
-    }
-}
-
-impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
-        self.serializer.push_path(key);
-
-        serde::ser::SerializeMap::serialize_value(self, value)
-    }
-
-    #[inline]
-    fn end(self) -> Result<()> {
-        serde::ser::SerializeMap::end(self)
-    }
-}
-
-impl<'s, 'o> serde::ser::SerializeStructVariant for KVSerializer<'s, 'o> {
-    type Ok = ();
-    type Error = Error;
-
-    #[inline]
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        serde::ser::SerializeStruct::serialize_field(self, key, value)
-    }
-
-    #[inline]
-    fn end(self) -> Result<()> {
-        serde::ser::SerializeMap::end(self)
     }
 }
