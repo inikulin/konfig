@@ -1,6 +1,5 @@
 pub mod error;
 pub mod ser;
-mod value;
 
 use crate::error::Result;
 use crate::ser::Serializer;

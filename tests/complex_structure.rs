@@ -21,7 +21,7 @@ struct ComplexData {
     /// An integer value.
     integer: i32,
 
-    /// A list of numbers .
+    /// A list of numbers.
     numbers: Vec<usize>,
 
     /// A floating-point value.
