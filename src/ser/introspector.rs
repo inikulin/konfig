@@ -126,11 +126,11 @@ impl serde::Serializer for Introspector {
     }
 
     #[inline]
-    fn serialize_some<T>(self, _value: &T) -> Result<Infallible, ValueKind>
+    fn serialize_some<T>(self, value: &T) -> Result<Infallible, ValueKind>
     where
         T: ?Sized + Serialize,
     {
-        Err(ValueKind::Compound)
+        value.serialize(self)
     }
 
     #[inline]
@@ -311,6 +311,8 @@ mod tests {
             NewTypeStruct<bool>,
             Unit
         }
+
+        assert_eq!(Introspector::val_kind(Some(42u8)), ValueKind::Leaf);
     }
 
     #[test]
@@ -327,7 +329,7 @@ mod tests {
             vec![vec![1], vec![2], vec![3]],
             std::collections::BTreeMap::<String, String>::default(),
             Struct::default(),
-            Some(42)
+            Some(vec![vec![1], vec![2], vec![3]])
         }
     }
 
