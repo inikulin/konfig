@@ -14,7 +14,7 @@ impl<'s, 'o> SeqRepresentation<'s, 'o> {
     fn switch_to_kv(&mut self) {
         let serializer = match self {
             Self::Inline(s) => s.take().expect("should have inline serializer"),
-            _ => return,
+            _ => unreachable!("serializer can be switched to kv only once"),
         };
 
         *self = SeqRepresentation::Kv(KVSerializer::new(serializer, KVSerializerMode::Default));
