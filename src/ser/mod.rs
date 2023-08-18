@@ -64,21 +64,6 @@ impl<'o> Serializer<'o> {
         self.breadcrumbs.borrow_mut().pop();
     }
 
-    fn serialize_with_output(
-        &self,
-        out: &mut String,
-        value: &(impl Serialize + ?Sized),
-    ) -> Result<()> {
-        let mut serializer = Serializer {
-            breadcrumbs: Rc::clone(&self.breadcrumbs),
-            out,
-            skip_breadcrumbs_serialization: self.skip_breadcrumbs_serialization,
-            enum_serialization_mode: self.enum_serialization_mode,
-        };
-
-        value.serialize(&mut serializer)
-    }
-
     fn serialize_breadcrumbs(&mut self) {
         if self.skip_breadcrumbs_serialization {
             return;
@@ -101,14 +86,6 @@ impl<'o> Serializer<'o> {
         }
 
         self.out.push_str("= ");
-    }
-
-    fn merge_output(&mut self, other: &str) {
-        if !self.out.is_empty() && !other.is_empty() {
-            self.out.push_str("\n\n");
-        }
-
-        self.out.push_str(other);
     }
 }
 

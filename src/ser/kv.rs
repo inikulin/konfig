@@ -13,19 +13,12 @@ pub(super) enum KVSerializerMode {
 
 pub struct KVSerializer<'s, 'o> {
     pub(super) serializer: &'s mut Serializer<'o>,
-    enum_values_out: String,
-    compound_values_out: String,
     mode: KVSerializerMode,
 }
 
 impl<'s, 'o> KVSerializer<'s, 'o> {
     pub(super) fn new(serializer: &'s mut Serializer<'o>, mode: KVSerializerMode) -> Self {
-        Self {
-            serializer,
-            enum_values_out: "".into(),
-            compound_values_out: "".into(),
-            mode,
-        }
+        Self { serializer, mode }
     }
 }
 
@@ -57,17 +50,12 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
             ValueKind::NonUnitEnumVariant => {
                 self.serializer.enum_serialization_mode =
                     EnumVariantSerializationMode::AssignmentOnly;
-
                 value.serialize(&mut *self.serializer)?;
 
                 self.serializer.enum_serialization_mode = EnumVariantSerializationMode::PayloadOnly;
-
-                self.serializer
-                    .serialize_with_output(&mut self.enum_values_out, value)?;
+                value.serialize(&mut *self.serializer)?;
             }
-            _ => self
-                .serializer
-                .serialize_with_output(&mut self.compound_values_out, value)?,
+            _ => value.serialize(&mut *self.serializer)?,
         }
 
         self.serializer.pop_path();
@@ -80,9 +68,6 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
         if self.mode == KVSerializerMode::Noop {
             return Ok(());
         }
-
-        self.serializer.merge_output(&self.enum_values_out);
-        self.serializer.merge_output(&self.compound_values_out);
 
         if self.mode == KVSerializerMode::WithPathPopOnCompletion {
             self.serializer.pop_path();
