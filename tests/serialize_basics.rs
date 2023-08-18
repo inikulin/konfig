@@ -301,3 +301,45 @@ fn enum_value() {
         "}
     };
 }
+
+#[test]
+fn newtype_struct_and_variant() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct NewtypeStruct(Vec<u8>);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct WithNestedNewtypeStruct(NewtypeStruct);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum NewTypeEnum1 {
+        Enum1Variant(NewtypeStruct),
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum NewTypeEnum2 {
+        Enum2Variant(NewTypeEnum1),
+    }
+
+    ok! { NewtypeStruct(vec![1,2,3]) => "> = [1, 2, 3]" };
+
+    ok! { WithNestedNewtypeStruct(NewtypeStruct(vec![1,2,3])) => "> = [1, 2, 3]" };
+
+    ok! {
+        NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])) => indoc!{"
+            > = `Enum1Variant`
+
+            > `Enum1Variant` = [1, 2, 3]\
+        "}
+    };
+
+    ok! {
+        NewTypeEnum2::Enum2Variant(NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])))
+        => indoc!{"
+            > = `Enum2Variant`
+
+            > `Enum2Variant` = `Enum1Variant`
+
+            > `Enum2Variant` > `Enum1Variant` = [1, 2, 3]\
+        "}
+    };
+}
