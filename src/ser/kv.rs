@@ -1,6 +1,6 @@
 use super::introspector::{Introspector, ValueKind};
 use super::map_key::MapKeySerializer;
-use super::{EnumVariantSerializationMode, Serializer};
+use super::Serializer;
 use crate::error::{Error, Result};
 use serde::ser::Serialize;
 
@@ -47,14 +47,6 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
 
         match Introspector::val_kind(value) {
             ValueKind::Leaf | ValueKind::KvOnlyLeaf => value.serialize(&mut *self.serializer)?,
-            ValueKind::NonUnitEnumVariant => {
-                self.serializer.enum_serialization_mode =
-                    EnumVariantSerializationMode::AssignmentOnly;
-                value.serialize(&mut *self.serializer)?;
-
-                self.serializer.enum_serialization_mode = EnumVariantSerializationMode::PayloadOnly;
-                value.serialize(&mut *self.serializer)?;
-            }
             _ => value.serialize(&mut *self.serializer)?,
         }
 

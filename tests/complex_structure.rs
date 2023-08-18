@@ -86,13 +86,16 @@ enum ValueEnum {
 #[derive(Serialize)]
 enum StructureVariant {
     /// The variant with two fields.
-    Variant {
-        /// The name of the variant.
-        name: String,
+    Variant(StructVariantFields),
+}
 
-        /// The value of the variant.
-        value: i32,
-    },
+#[derive(Serialize)]
+struct StructVariantFields {
+    /// The name of the variant.
+    name: String,
+
+    /// The value of the variant.
+    value: i32,
 }
 
 /// An enum that represents a unit variant.
@@ -189,14 +192,16 @@ fn serialize_complex_structure() {
         character: 'c',
         ipv4_address: Ipv4Addr::new(192, 168, 0, 1),
         ipv6_address: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
-        structure_variant: StructureVariant::Variant {
+        structure_variant: StructureVariant::Variant(StructVariantFields {
             name: "variant".to_string(),
             value: 42,
-        },
+        }),
         unit_variant: UnitVariant::Variant,
     };
 
     let serialized = konfig::to_string(&val).unwrap();
+
+    println!("{serialized}");
 
     assert_eq!(
         serialized,

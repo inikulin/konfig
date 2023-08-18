@@ -10,48 +10,25 @@ use crate::error::{Error, Result};
 use seq::SeqSerializer;
 use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
-use std::cell::RefCell;
-use std::rc::Rc;
-
-#[derive(PartialEq, Copy, Clone)]
-enum EnumVariantSerializationMode {
-    Full,
-    AssignmentOnly,
-    PayloadOnly,
-}
-
-impl EnumVariantSerializationMode {
-    #[inline]
-    fn serialize_assignment(&self) -> bool {
-        *self == Self::Full || *self == Self::AssignmentOnly
-    }
-
-    #[inline]
-    fn serialize_payload(&self) -> bool {
-        *self == Self::Full || *self == Self::PayloadOnly
-    }
-}
 
 pub struct Serializer<'o> {
-    breadcrumbs: Rc<RefCell<Vec<Cow<'static, str>>>>,
+    breadcrumbs: Vec<Cow<'static, str>>,
     out: &'o mut String,
     skip_breadcrumbs_serialization: bool,
-    enum_serialization_mode: EnumVariantSerializationMode,
 }
 
 impl<'o> Serializer<'o> {
     pub fn new(out: &'o mut String) -> Self {
         Self {
-            breadcrumbs: Rc::new(RefCell::new(vec![])),
+            breadcrumbs: Default::default(),
             out,
             skip_breadcrumbs_serialization: false,
-            enum_serialization_mode: EnumVariantSerializationMode::Full,
         }
     }
 
     #[inline]
     fn push_path(&mut self, key: impl Into<Cow<'static, str>>) {
-        self.breadcrumbs.borrow_mut().push(key.into());
+        self.breadcrumbs.push(key.into());
     }
 
     #[inline]
@@ -61,7 +38,7 @@ impl<'o> Serializer<'o> {
 
     #[inline]
     fn pop_path(&mut self) {
-        self.breadcrumbs.borrow_mut().pop();
+        self.breadcrumbs.pop();
     }
 
     fn serialize_breadcrumbs(&mut self) {
@@ -73,14 +50,12 @@ impl<'o> Serializer<'o> {
             self.out.push_str("\n\n");
         }
 
-        let breadcrumbs = self.breadcrumbs.borrow();
-
-        if breadcrumbs.is_empty() {
+        if self.breadcrumbs.is_empty() {
             self.out.push_str("> ");
         } else {
-            for key in &*breadcrumbs {
+            for key in &self.breadcrumbs {
                 self.out.push_str("> ");
-                self.out.push_str(key);
+                self.out.push_str(&key);
                 self.out.push(' ');
             }
         }
@@ -245,17 +220,13 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        if Introspector::val_kind(value) != ValueKind::Leaf
-            && self.enum_serialization_mode.serialize_assignment()
-        {
+        if Introspector::val_kind(value) != ValueKind::Leaf {
             self.serialize_unit_variant(name, variant_index, variant)?;
         }
 
-        if self.enum_serialization_mode.serialize_payload() {
-            self.push_enum_variant_path(variant);
-            value.serialize(&mut *self)?;
-            self.pop_path();
-        }
+        self.push_enum_variant_path(variant);
+        value.serialize(&mut *self)?;
+        self.pop_path();
 
         Ok(())
     }
@@ -315,23 +286,11 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        if self.enum_serialization_mode.serialize_assignment() {
-            self.serialize_unit_variant(name, variant_index, variant)?;
-        }
-
-        let kv_ser_mode = if self.enum_serialization_mode.serialize_payload() {
-            self.push_enum_variant_path(variant);
-
-            KVSerializerMode::WithPathPopOnCompletion
-        } else {
-            KVSerializerMode::Noop
-        };
-
-        Ok(KVSerializer::new(self, kv_ser_mode))
+        Err(Error::StructVariantsUnsupported)
     }
 }

@@ -6,6 +6,8 @@ pub enum Error {
     InvalidMapKeyType,
     #[error("tuples are unsupported")]
     TuplesUnsupported,
+    #[error("structure enum variants are unsupported")]
+    StructVariantsUnsupported,
     #[error("{0}")]
     Custom(String),
 }

@@ -280,17 +280,12 @@ fn enum_value() {
         Error::TuplesUnsupported
     );
 
-    ok! {
+    err! {
         Animal::Cat {
             age: 5,
             name: "Kate".to_string(),
-        } => indoc!{"
-            > = `Cat`
-
-            > `Cat` > age = 5
-            
-            > `Cat` > name = \"Kate\"\
-        "}
+        },
+        Error::StructVariantsUnsupported
     };
 
     ok! {

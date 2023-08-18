@@ -7,7 +7,6 @@ pub(crate) enum ValueKind {
     Leaf,
     KvOnlyLeaf,
     Compound,
-    NonUnitEnumVariant,
     Unsupported,
 }
 
@@ -176,7 +175,7 @@ impl serde::Serializer for Introspector {
     where
         T: ?Sized + Serialize,
     {
-        Err(ValueKind::NonUnitEnumVariant)
+        Err(ValueKind::Compound)
     }
 
     #[inline]
@@ -236,7 +235,7 @@ impl serde::Serializer for Introspector {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant, ValueKind> {
-        Err(ValueKind::NonUnitEnumVariant)
+        Err(ValueKind::Unsupported)
     }
 }
 
@@ -329,7 +328,8 @@ mod tests {
             vec![vec![1], vec![2], vec![3]],
             std::collections::BTreeMap::<String, String>::default(),
             Struct::default(),
-            Some(vec![vec![1], vec![2], vec![3]])
+            Some(vec![vec![1], vec![2], vec![3]]),
+            Variants::NewType(0)
         }
     }
 
@@ -353,19 +353,6 @@ mod tests {
     }
 
     #[test]
-    fn non_unit_enum_variant_value() {
-        assert_eq!(
-            Introspector::val_kind(Variants::Struct { foo: 123 }),
-            ValueKind::NonUnitEnumVariant
-        );
-
-        assert_eq!(
-            Introspector::val_kind(Variants::NewType(0)),
-            ValueKind::NonUnitEnumVariant
-        );
-    }
-
-    #[test]
     fn unsupported_value() {
         macro_rules! assert_unsupported {
             ( $($val:expr),+ ) => {
@@ -379,6 +366,7 @@ mod tests {
             0i128,
             0u128,
             Variants::Tuple(0, 0),
+            Variants::Struct { foo: 123 },
             (1, 2, false),
             Tuple::default()
         }
