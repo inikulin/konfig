@@ -289,11 +289,8 @@ fn enum_value() {
     };
 
     ok! {
-        Animal::AntHive(vec!["Bob".to_string(), "Stuart".to_string()]) => indoc!{"
-            > = `AntHive`
-            
-            > `AntHive` = [\"Bob\", \"Stuart\"]\
-        "}
+        Animal::AntHive(vec!["Bob".to_string(), "Stuart".to_string()]) =>
+        "> `AntHive` = [\"Bob\", \"Stuart\"]"
     };
 }
 
@@ -320,21 +317,11 @@ fn newtype_struct_and_variant() {
     ok! { WithNestedNewtypeStruct(NewtypeStruct(vec![1,2,3])) => "> = [1, 2, 3]" };
 
     ok! {
-        NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])) => indoc!{"
-            > = `Enum1Variant`
-
-            > `Enum1Variant` = [1, 2, 3]\
-        "}
+        NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])) => "> `Enum1Variant` = [1, 2, 3]"
     };
 
     ok! {
-        NewTypeEnum2::Enum2Variant(NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])))
-        => indoc!{"
-            > = `Enum2Variant`
-
-            > `Enum2Variant` = `Enum1Variant`
-
-            > `Enum2Variant` > `Enum1Variant` = [1, 2, 3]\
-        "}
+        NewTypeEnum2::Enum2Variant(NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3]))) =>
+        "> `Enum2Variant` > `Enum1Variant` = [1, 2, 3]"
     };
 }

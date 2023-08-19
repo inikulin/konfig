@@ -170,12 +170,21 @@ impl serde::Serializer for Introspector {
         _name: &'static str,
         _variant_index: u32,
         _variant: &'static str,
-        _value: &T,
+        value: &T,
     ) -> Result<Infallible, ValueKind>
     where
         T: ?Sized + Serialize,
     {
-        Err(ValueKind::Compound)
+        let val_kind = value.serialize(self);
+
+        // NOTE: we can't inline newtype enum variants in sequences as this will erase enum
+        // variant information as we don't emit breadcrumbs for those, e.g.:
+        // `> [0] > `Foo` = 123` will be inlined as `> = [ 123 ]`
+        if let Err(ValueKind::Leaf) = val_kind {
+            return Err(ValueKind::KvOnlyLeaf);
+        }
+
+        val_kind
     }
 
     #[inline]
@@ -328,8 +337,7 @@ mod tests {
             vec![vec![1], vec![2], vec![3]],
             std::collections::BTreeMap::<String, String>::default(),
             Struct::default(),
-            Some(vec![vec![1], vec![2], vec![3]]),
-            Variants::NewType(0)
+            Some(vec![vec![1], vec![2], vec![3]])
         }
     }
 
@@ -348,7 +356,8 @@ mod tests {
             Variants::Unit,
             vec![1, 2, 3],
             Vec::<String>::new(),
-            std::ffi::CString::default()
+            std::ffi::CString::default(),
+            Variants::NewType(0)
         }
     }
 

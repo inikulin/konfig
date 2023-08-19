@@ -55,7 +55,7 @@ impl<'o> Serializer<'o> {
         } else {
             for key in &self.breadcrumbs {
                 self.out.push_str("> ");
-                self.out.push_str(&key);
+                self.out.push_str(key);
                 self.out.push(' ');
             }
         }
@@ -220,7 +220,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        if Introspector::val_kind(value) != ValueKind::Leaf {
+        if Introspector::val_kind(value) == ValueKind::Compound {
             self.serialize_unit_variant(name, variant_index, variant)?;
         }
 
