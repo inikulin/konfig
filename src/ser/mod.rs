@@ -182,6 +182,9 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_unit(self) -> Result<()> {
+        self.serialize_breadcrumbs();
+        self.out.push_str("null");
+
         Ok(())
     }
 

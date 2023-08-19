@@ -201,8 +201,6 @@ fn serialize_complex_structure() {
 
     let serialized = konfig::to_string(&val).unwrap();
 
-    println!("{serialized}");
-
     assert_eq!(
         serialized,
         include_str!("./data/expected/complex_structure.k.md")

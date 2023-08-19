@@ -4753,6 +4753,9 @@ fn serialize_config(src: &str, expected: &str) {
     let cfg: Deployment = serde_yaml::from_str(src).unwrap();
     let serialized = konfig::to_string(&cfg).unwrap();
 
+    println!("{serialized}");
+
+
     assert_eq!(serialized, expected);
 }
 

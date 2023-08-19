@@ -121,7 +121,7 @@ impl serde::Serializer for Introspector {
 
     #[inline]
     fn serialize_none(self) -> Result<Infallible, ValueKind> {
-        Err(ValueKind::KvOnlyLeaf)
+        Err(ValueKind::Leaf)
     }
 
     #[inline]
@@ -304,23 +304,22 @@ mod tests {
     #[test]
     fn leaf_values() {
         macro_rules! assert_leaf {
-            ( $($Ty:ty),+ ) => {
+            ( $($val:expr),+ ) => {
                 $(
-                    assert_eq!(Introspector::val_kind(<$Ty>::default()), ValueKind::Leaf);
+                    assert_eq!(Introspector::val_kind($val), ValueKind::Leaf);
                 )+
             };
         }
 
         assert_leaf! {
-            i8, i16, i32, i64, isize,
-            u8, u16, u32, u64, usize,
-            f32, f64, char, bool, (),
-            String, &str,
-            NewTypeStruct<bool>,
-            Unit
+            0i8, 0i16, 0i32, 0i64, 0isize,
+            0u8, 0u16, 0u32, 0u64, 0usize,
+            0f32, 0f64, 'k', true, (),
+            String::from("foobar"), "foobar",
+            NewTypeStruct(false),
+            Unit,
+            None::<String>
         }
-
-        assert_eq!(Introspector::val_kind(Some(42u8)), ValueKind::Leaf);
     }
 
     #[test]
@@ -352,7 +351,6 @@ mod tests {
         }
 
         assert_kv_only_leaf! {
-            None::<String>,
             Variants::Unit,
             vec![1, 2, 3],
             Vec::<String>::new(),
