@@ -18,7 +18,7 @@
 
 > metadata > generation = null
 
-> metadata > labels > [app] = "complex-app"
+> metadata > labels > ["app"] = "complex-app"
 
 > metadata > name = "complex-deployment"
 
@@ -46,7 +46,7 @@
 
 > spec > selector > matchExpressions = null
 
-> spec > selector > matchLabels > [app] = "complex-app"
+> spec > selector > matchLabels > ["app"] = "complex-app"
 
 > spec > strategy = null
 
@@ -66,7 +66,7 @@
 
 > spec > template > metadata > generation = null
 
-> spec > template > metadata > labels > [app] = "complex-app"
+> spec > template > metadata > labels > ["app"] = "complex-app"
 
 > spec > template > metadata > name = null
 
@@ -366,7 +366,7 @@
 
 > spec > template > spec > nodeName = null
 
-> spec > template > spec > nodeSelector > [disktype] = "ssd"
+> spec > template > spec > nodeSelector > ["disktype"] = "ssd"
 
 > spec > template > spec > restartPolicy = null
 

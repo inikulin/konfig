@@ -18,7 +18,7 @@
 
 > metadata > generation = null
 
-> metadata > labels > [app] = "my-app"
+> metadata > labels > ["app"] = "my-app"
 
 > metadata > name = "my-app"
 
@@ -46,7 +46,7 @@
 
 > spec > selector > matchExpressions = null
 
-> spec > selector > matchLabels > [app] = "my-app"
+> spec > selector > matchLabels > ["app"] = "my-app"
 
 > spec > strategy = null
 
@@ -66,7 +66,7 @@
 
 > spec > template > metadata > generation = null
 
-> spec > template > metadata > labels > [app] = "my-app"
+> spec > template > metadata > labels > ["app"] = "my-app"
 
 > spec > template > metadata > name = null
 

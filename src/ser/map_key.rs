@@ -8,13 +8,7 @@ pub(crate) struct MapKeySerializer<'o> {
 
 impl<'o> MapKeySerializer<'o> {
     pub(crate) fn serialize(v: impl Serialize) -> Result<String> {
-        let mut key = String::with_capacity(16);
-
-        key.push('[');
-        v.serialize(MapKeySerializer { out: &mut key })?;
-        key.push(']');
-
-        Ok(key)
+        utils::make_map_key(|key| v.serialize(MapKeySerializer { out: key }))
     }
 }
 
@@ -51,7 +45,9 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_i64(self, v: i64) -> Result<()> {
+        self.out.push('"');
         utils::write_int(self.out, v);
+        self.out.push('"');
 
         Ok(())
     }
@@ -73,7 +69,9 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_u64(self, v: u64) -> Result<()> {
+        self.out.push('"');
         utils::write_int(self.out, v);
+        self.out.push('"');
 
         Ok(())
     }
@@ -95,7 +93,7 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.out.push_str(v);
+        utils::write_escaped_str(self.out, v);
 
         Ok(())
     }

@@ -144,27 +144,8 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        let mut start = 0;
-
         self.serialize_breadcrumbs();
-        self.out.push('"');
-
-        for (i, c) in v.char_indices() {
-            if let Some(esc) = utils::escape_char(c) {
-                if start < i {
-                    self.out.push_str(&v[start..i]);
-                }
-
-                self.out.push_str(esc);
-                start = i + 1;
-            }
-        }
-
-        if start < v.len() {
-            self.out.push_str(&v[start..]);
-        }
-
-        self.out.push('"');
+        utils::write_escaped_str(self.out, v);
 
         Ok(())
     }

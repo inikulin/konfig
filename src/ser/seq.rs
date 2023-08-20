@@ -1,5 +1,6 @@
 use super::introspector::{Introspector, ValueKind};
 use super::kv::{KVSerializer, KVSerializerMode};
+use super::utils;
 use super::Serializer;
 use crate::error::{Error, Result};
 use serde::ser::Serialize;
@@ -49,7 +50,13 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
 
         match self.repr {
             SeqRepresentation::Kv(ref mut serializer) => {
-                serde::ser::SerializeMap::serialize_key(serializer, &self.current_index)?;
+                let key = utils::make_map_key(|key| {
+                    utils::write_int(key, self.current_index);
+                    Ok(())
+                })?;
+
+                serializer.inner.push_path(key);
+
                 serde::ser::SerializeMap::serialize_value(serializer, value)?;
             }
             SeqRepresentation::Inline(Some(ref mut serializer)) => {

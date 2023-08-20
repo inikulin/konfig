@@ -14,17 +14,17 @@
 
 > values > `Array` > [2] > `Float` = 3.140000104904175
 
-> properties > properties > [prop1] > name = "prop1"
+> properties > properties > ["prop1"] > name = "prop1"
 
-> properties > properties > [prop1] > value > `Boolean` = true
+> properties > properties > ["prop1"] > value > `Boolean` = true
 
-> properties > properties > [prop2] > name = "prop2"
+> properties > properties > ["prop2"] > name = "prop2"
 
-> properties > properties > [prop2] > value > `Integer` = 42
+> properties > properties > ["prop2"] > value > `Integer` = 42
 
-> properties > properties > [prop3] > name = "prop3"
+> properties > properties > ["prop3"] > name = "prop3"
 
-> properties > properties > [prop3] > value > `String` = "hello"
+> properties > properties > ["prop3"] > value > `String` = "hello"
 
 > boolean = true
 
