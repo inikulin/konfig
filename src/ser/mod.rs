@@ -4,7 +4,6 @@ mod map_key;
 mod seq;
 mod utils;
 
-use self::introspector::{Introspector, ValueKind};
 use self::kv::{KVSerializer, KVSerializerMode};
 use crate::error::{Error, Result};
 use seq::SeqSerializer;
@@ -196,18 +195,14 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
 
     fn serialize_newtype_variant<T>(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        if Introspector::val_kind(value) == ValueKind::Compound {
-            self.serialize_unit_variant(name, variant_index, variant)?;
-        }
-
         self.push_enum_variant_path(variant);
         value.serialize(&mut *self)?;
         self.pop_path();

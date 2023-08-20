@@ -6,8 +6,6 @@
 
 > items > items > [1] > value = 20
 
-> values = `Array`
-
 > values > `Array` > [0] > `Integer` = 1
 
 > values > `Array` > [1] > `String` = "two"
@@ -41,8 +39,6 @@
 > ipv4_address = "192.168.0.1"
 
 > ipv6_address = "::1"
-
-> structure_variant = `Variant`
 
 > structure_variant > `Variant` > name = "variant"
 

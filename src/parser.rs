@@ -4,7 +4,8 @@ pub enum Node<'i> {
     Sequence(Vec<Node<'i>>),
     InlineSequence(Vec<LeafValue>),
     Map(HashMap<&'i str, Node<'i>>),
-    EnumVariant(&'i str, Box<Node<'i>>),
+    NewTypeEnumVariant(&'i str, Box<Node<'i>>),
+    UnitEnumVariant(&'i str),
     Fields(HashMap<&'i str, Node<'i>>),
     Leaf(LeafValue),
 }
