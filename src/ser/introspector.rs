@@ -178,7 +178,7 @@ impl serde::Serializer for Introspector {
         let val_kind = value.serialize(self);
 
         // NOTE: we can't inline newtype enum variants in sequences as this will erase enum
-        // variant information as we don't emit breadcrumbs for those, e.g.:
+        // variant information as we don't emit path for those, e.g.:
         // `> [0] > `Foo` = 123` will be inlined as `> = [ 123 ]`
         if let Err(ValueKind::Leaf) = val_kind {
             return Err(ValueKind::KvOnlyLeaf);

@@ -1,0 +1,64 @@
+value_assignment = { path ~ "=" ~ rhs }
+
+// Path
+//--------------------------------------------------------------------------------------------
+path = ${ path_start ~ path_item? ~ ( path_sep ~ path_item )* }
+path_start = @{ ">" ~ " "* }
+path_sep = @{ " "* ~ ">" ~ line_wrap_path_sep? ~ " "* } 
+line_wrap_path_sep = @{ " "* ~ NEWLINE ~ ">" }
+path_item = { field_name | enum_variant | map_key | index }
+
+field_name = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" )* }
+
+enum_variant = ${ "`" ~ enum_variant_ident ~ "`" }
+enum_variant_ident = @{ field_name }
+
+map_key = { "[" ~ map_key_literal ~ "]" }
+map_key_literal = { single_quoted_string | double_quoted_string } 
+
+index = { "[" ~ index_digits ~ "]" }
+index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
+
+
+// RHS
+//--------------------------------------------------------------------------------------------
+rhs = { inline_sequence | enum_variant | value }
+
+inline_sequence = { "[" ~ inline_sequence_values? ~ "]" }
+inline_sequence_values = { value ~ ( "," ~ value )* ~ ","? }
+
+
+// Values
+//--------------------------------------------------------------------------------------------
+value = { 
+    null | boolean | float | neg_int | pos_int | single_quoted_string | double_quoted_string 
+}
+
+null = { "null" }
+
+boolean = { boolean_true | boolean_false }
+boolean_true = { "true" }
+boolean_false = { "false" }
+
+pos_int = ${ ( "0x" ~ hex_digits ) | dec_digits }
+hex_digits = { ASCII_HEX_DIGIT+ }
+dec_digits = { ASCII_DIGIT+ }
+
+neg_int = ${ "-" ~ pos_int }
+
+float = ${ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ exponent? }
+exponent = @{ ( "e" | "E" ) ~ ( "+" | "-" )? ~ ASCII_DIGIT+ }
+
+double_quoted_string = ${ "\"" ~ double_quoted_string_content ~ "\"" }
+double_quoted_string_content = ${ ( double_quoted_string_text | esc )* }
+double_quoted_string_text = { ( !("\"" | "\\") ~ ANY )+ }
+
+single_quoted_string = ${ "'" ~ single_quoted_string_content ~ "'" }
+single_quoted_string_content = ${ ( single_quoted_string_text | esc )* }
+single_quoted_string_text = { ( !("'" | "\\") ~ ANY )+ }
+
+esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
+esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" }
+esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
+
+WHITESPACE = _{ " " | NEWLINE }

@@ -61,15 +61,15 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
             }
             SeqRepresentation::Inline(Some(ref mut serializer)) => {
                 if self.current_index == 0 {
-                    serializer.serialize_breadcrumbs();
+                    serializer.serialize_path();
                     serializer.out.push('[');
                 } else {
                     serializer.out.push_str(", ");
                 }
 
-                serializer.skip_breadcrumbs_serialization = true;
+                serializer.skip_path_serialization = true;
                 value.serialize(&mut **serializer)?;
-                serializer.skip_breadcrumbs_serialization = false;
+                serializer.skip_path_serialization = false;
             }
             SeqRepresentation::Inline(None) => unreachable!("inline repr should have serializer"),
         }
@@ -85,7 +85,7 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
                 unreachable!("repr shouldn't be switched to kv for empty sequences")
             };
 
-            serializer.serialize_breadcrumbs();
+            serializer.serialize_path();
             serializer.out.push_str("[]");
         } else {
             match self.repr {

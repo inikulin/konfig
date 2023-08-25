@@ -11,23 +11,23 @@ use serde::ser::{Impossible, Serialize};
 use std::borrow::Cow;
 
 pub struct Serializer<'o> {
-    breadcrumbs: Vec<Cow<'static, str>>,
+    path: Vec<Cow<'static, str>>,
     out: &'o mut String,
-    skip_breadcrumbs_serialization: bool,
+    skip_path_serialization: bool,
 }
 
 impl<'o> Serializer<'o> {
     pub fn new(out: &'o mut String) -> Self {
         Self {
-            breadcrumbs: Default::default(),
+            path: Default::default(),
             out,
-            skip_breadcrumbs_serialization: false,
+            skip_path_serialization: false,
         }
     }
 
     #[inline]
     fn push_path(&mut self, key: impl Into<Cow<'static, str>>) {
-        self.breadcrumbs.push(key.into());
+        self.path.push(key.into());
     }
 
     #[inline]
@@ -37,11 +37,11 @@ impl<'o> Serializer<'o> {
 
     #[inline]
     fn pop_path(&mut self) {
-        self.breadcrumbs.pop();
+        self.path.pop();
     }
 
-    fn serialize_breadcrumbs(&mut self) {
-        if self.skip_breadcrumbs_serialization {
+    fn serialize_path(&mut self) {
+        if self.skip_path_serialization {
             return;
         }
 
@@ -49,10 +49,10 @@ impl<'o> Serializer<'o> {
             self.out.push_str("\n\n");
         }
 
-        if self.breadcrumbs.is_empty() {
+        if self.path.is_empty() {
             self.out.push_str("> ");
         } else {
-            for key in &self.breadcrumbs {
+            for key in &self.path {
                 self.out.push_str("> ");
                 self.out.push_str(key);
                 self.out.push(' ');
@@ -75,7 +75,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     type SerializeStructVariant = KVSerializer<'s, 'o>;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         self.out.push_str(if v { "true" } else { "false" });
 
         Ok(())
@@ -97,7 +97,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         utils::write_int(self.out, v);
 
         Ok(())
@@ -119,7 +119,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         utils::write_int(self.out, v);
 
         Ok(())
@@ -131,7 +131,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         utils::write_float(self.out, v);
 
         Ok(())
@@ -143,7 +143,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         utils::write_escaped_str(self.out, v);
 
         Ok(())
@@ -162,7 +162,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_unit(self) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         self.out.push_str("null");
 
         Ok(())
@@ -178,7 +178,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         self.out.push('`');
         self.out.push_str(variant);
         self.out.push('`');
@@ -215,7 +215,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.serialize_breadcrumbs();
+        self.serialize_path();
         self.out.push('[');
 
         for (i, byte) in v.iter().enumerate() {

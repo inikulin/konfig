@@ -9,6 +9,8 @@ serde = { version = "^1.0.100", features = ["derive"] }
 itoa = "^1.0.0"
 ryu = "^1.0.0"
 thiserror = "^1.0.0"
+pest_consume = "1.0"
+pest = "2.1"
 
 [dev-dependencies]
 indoc = "2.0.1"

@@ -1,3 +1,5 @@
+use crate::parser::ParseError;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -8,6 +10,8 @@ pub enum Error {
     TuplesUnsupported,
     #[error("structure enum variants are unsupported")]
     StructVariantsUnsupported,
+    #[error("{0}")]
+    Parsing(ParseError),
     #[error("{0}")]
     Custom(String),
 }
