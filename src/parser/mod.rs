@@ -179,24 +179,25 @@ impl Parser {
         _parse_quoted_string(node, Rule::single_quoted_string_text)
     }
 
-    fn esc(node: Node) -> ParseResult<char> {
+    fn esc(node: Node) -> ParseResult<Option<char>> {
         Ok(match_nodes! {
             node.children();
             [esc_alias(c)] => c,
-            [esc_unicode(c)] => c,
+            [esc_unicode(c)] => Some(c),
         })
     }
 
-    fn esc_alias(node: Node) -> ParseResult<char> {
+    fn esc_alias(node: Node) -> ParseResult<Option<char>> {
         Ok(match node.as_str() {
-            "\"" => '"',
-            "\\" => '\\',
-            "/" => '/',
-            "b" => '\x08',
-            "f" => '\x0C',
-            "n" => '\n',
-            "r" => '\r',
-            "t" => '\t',
+            "\"" => Some('"'),
+            "\\" => Some('\\'),
+            "/" => Some('/'),
+            "b" => Some('\x08'),
+            "f" => Some('\x0C'),
+            "n" => Some('\n'),
+            "r" => Some('\r'),
+            "t" => Some('\t'),
+            "\n" | "\r" | "\r\n" => None,
             _ => unreachable!(),
         })
     }
@@ -313,7 +314,11 @@ fn _parse_quoted_string(node: Node, text_rule: Rule) -> ParseResult<String> {
     for node in content.into_children() {
         match node.as_rule() {
             r if r == text_rule => string.push_str(node.as_str()),
-            Rule::esc => string.push(Parser::esc(node)?),
+            Rule::esc => {
+                if let Some(esc) = Parser::esc(node)? {
+                    string.push(esc);
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -347,7 +352,7 @@ pub fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             | Rule::single_quoted_string_content
             | Rule::single_quoted_string_text => "single quoted string",
             Rule::esc => "escape sequence",
-            Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t`",
+            Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or a new line",
             Rule::esc_unicode => "unicode character escape sequence",
             Rule::inline_sequence | Rule::inline_sequence_values => "inline sequence",
             Rule::rhs => "assignment right hand side",
@@ -493,6 +498,11 @@ mod tests {
         ok! { double_quoted_string r#""foobar baz  qux""# => "foobar baz  qux".to_string() }
         ok! { double_quoted_string r#""foo \u41\u0042 bar\u00004300""# => "foo AB barC00".to_string() }
 
+        ok! { double_quoted_string "\"foo\n\nbar\"" => "foo\n\nbar".to_string() }
+        ok! { double_quoted_string "\"foo\\\nbar\"" => "foobar".to_string() }
+        ok! { double_quoted_string "\"foo\\\r\nbar\"" => "foobar".to_string() }
+        ok! { double_quoted_string "\"foo\\\rbar\"" => "foobar".to_string() }
+
         ok! {
             double_quoted_string r#""\n foo \t\r \\ baz \" bar \\n""#  =>
             "\n foo \t\r \\ baz \" bar \\n".to_string()
@@ -519,7 +529,7 @@ mod tests {
           1 | " foo \h bar "
             |        ^---
             |
-            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` or a new line"#
         };
 
         err! { double_quoted_string r#"" foo \u110000 bar ""# =>
@@ -547,6 +557,11 @@ mod tests {
         ok! { single_quoted_string r#"'foobar baz  qux'"# => "foobar baz  qux".to_string() }
         ok! { single_quoted_string r#"'foo \u41\u0042 bar\u00004300'"# => "foo AB barC00".to_string() }
 
+        ok! { single_quoted_string "'foo\n\nbar'" => "foo\n\nbar".to_string() }
+        ok! { single_quoted_string "'foo\\\nbar'" => "foobar".to_string() }
+        ok! { single_quoted_string "'foo\\\r\nbar'" => "foobar".to_string() }
+        ok! { single_quoted_string "'foo\\\rbar'" => "foobar".to_string() }
+
         ok! {
             single_quoted_string r#"'\n foo \t\r \\ baz \" bar \\n'"#  =>
             "\n foo \t\r \\ baz \" bar \\n".to_string()
@@ -573,7 +588,7 @@ mod tests {
           1 | ' foo \h bar '
             |        ^---
             |
-            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` or a new line"#
         };
 
         err! { single_quoted_string r#"' foo \u110000 bar '"# =>

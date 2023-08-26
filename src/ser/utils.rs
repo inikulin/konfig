@@ -58,13 +58,13 @@ fn escape_char(c: char) -> Option<&'static str> {
     ];
 
     match c {
-        '\x08' => Some(r#"\b"#),
-        '\t' => Some(r#"\t"#),
-        '\n' => Some(r#"\n"#),
-        '\x0C' => Some(r#"\f"#),
-        '\r' => Some(r#"\r"#),
+        '\x08' => Some(r"\b"),
+        '\t' => Some(r"\t"),
+        '\n' => Some(r"\n"),
+        '\x0C' => Some(r"\f"),
+        '\r' => Some(r"\r"),
         '"' => Some(r#"\""#),
-        '\\' => Some(r#"\\"#),
+        '\\' => Some(r"\\"),
         '\x00'..='\x1F' => Some(UNICODE_ESCAPES[c as usize]),
         _ => None,
     }

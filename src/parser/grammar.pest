@@ -58,7 +58,7 @@ single_quoted_string_content = ${ ( single_quoted_string_text | esc )* }
 single_quoted_string_text = { ( !("'" | "\\") ~ ANY )+ }
 
 esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
-esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" }
+esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" | NEWLINE }
 esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
 
 WHITESPACE = _{ " " | NEWLINE }
