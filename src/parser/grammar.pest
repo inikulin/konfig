@@ -3,9 +3,9 @@ value_assignment = { path ~ "=" ~ rhs }
 // Path
 //--------------------------------------------------------------------------------------------
 path = ${ path_start ~ path_item? ~ ( path_sep ~ path_item )* }
-path_start = @{ ">" ~ " "* }
-path_sep = @{ " "* ~ ">" ~ line_wrap_path_sep? ~ " "* } 
-line_wrap_path_sep = @{ " "* ~ NEWLINE ~ ">" }
+path_start = @{ ">" ~ SPACE* }
+path_sep = @{ SPACE* ~ ">" ~ line_wrap_path_sep? ~ SPACE* } 
+line_wrap_path_sep = @{ SPACE* ~ NEWLINE ~ ">" }
 path_item = { field_name | enum_variant | map_key | index }
 
 field_name = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" )* }
@@ -31,7 +31,8 @@ inline_sequence_values = { value ~ ( "," ~ value )* ~ ","? }
 // Values
 //--------------------------------------------------------------------------------------------
 value = { 
-    null | boolean | float | neg_int | pos_int | single_quoted_string | double_quoted_string 
+    null | boolean | float | neg_int | pos_int | single_quoted_string | double_quoted_string |
+    raw_string
 }
 
 null = { "null" }
@@ -57,8 +58,15 @@ single_quoted_string = ${ "'" ~ single_quoted_string_content ~ "'" }
 single_quoted_string_content = ${ ( single_quoted_string_text | esc )* }
 single_quoted_string_text = { ( !("'" | "\\") ~ ANY )+ }
 
+raw_string = ${ raw_string_start ~ raw_string_text ~ raw_string_end }
+raw_string_start = ${ "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
+raw_string_end = ${ NEWLINE ~ "```" }
+raw_string_text = { ( !raw_string_end ~ ANY )+ }
+raw_string_lang_ident = ${ ( ASCII_ALPHANUMERIC | "_" )+ }
+
 esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
 esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" | NEWLINE }
 esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
 
-WHITESPACE = _{ " " | NEWLINE }
+SPACE = _{ " " | "\t" }
+WHITESPACE = _{ SPACE | NEWLINE }

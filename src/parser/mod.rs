@@ -140,6 +140,7 @@ impl Parser {
             [float(v)] => Value::Float(v),
             [single_quoted_string(v)] => Value::String(v),
             [double_quoted_string(v)] => Value::String(v),
+            [raw_string(v)] => Value::String(v)
         })
     }
 
@@ -177,6 +178,28 @@ impl Parser {
     #[inline]
     fn single_quoted_string(node: Node) -> ParseResult<String> {
         _parse_quoted_string(node, Rule::single_quoted_string_text)
+    }
+
+    #[inline]
+    fn raw_string_start(_node: Node) -> ParseResult<()> {
+        Ok(())
+    }
+
+    #[inline]
+    fn raw_string_end(_node: Node) -> ParseResult<()> {
+        Ok(())
+    }
+
+    #[inline]
+    fn raw_string_text(node: Node) -> ParseResult<String> {
+        Ok(node.as_str().to_string())
+    }
+
+    fn raw_string(node: Node) -> ParseResult<String> {
+        Ok(match_nodes! {
+            node.children();
+            [raw_string_start(_), raw_string_text(t), raw_string_end(_)] => t,
+        })
     }
 
     fn esc(node: Node) -> ParseResult<Option<char>> {
@@ -356,7 +379,6 @@ pub fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::esc_unicode => "unicode character escape sequence",
             Rule::inline_sequence | Rule::inline_sequence_values => "inline sequence",
             Rule::rhs => "assignment right hand side",
-            Rule::WHITESPACE => "whitespace",
             Rule::index | Rule::index_digits => "sequence index",
             Rule::field_name => "field name",
             Rule::enum_variant | Rule::enum_variant_ident => "enum variant",
@@ -366,7 +388,14 @@ pub fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::path_start => "`>` followed by optional whitespace",
             Rule::path => "value path",
             Rule::path_sep => "`>` surrounded by optional whitespace or two consequtive `>`s separated by a new line",
-            Rule::line_wrap_path_sep => "two consequtive `>`s separated by a new line"
+            Rule::line_wrap_path_sep => "two consequtive `>`s separated by a new line",
+            Rule::raw_string_lang_ident
+            | Rule::raw_string_start => "raw string start: ``` followed by an optional language identifier, followed by a mandatory new line",
+            Rule::raw_string_end => "raw string end: a new line followed by ```",
+            Rule::raw_string_text => "raw string text",
+            Rule::raw_string => "raw string",
+            Rule::SPACE => "` ` or `\\t`",
+            Rule::WHITESPACE => "whitespace",
         }.into()
     })
 }
@@ -401,7 +430,7 @@ mod tests {
     #[allow(unused_macros)]
     macro_rules! print_err {
         ($rule:ident $input:expr) => {
-            println!("{}", parse!($rule, $input).unwrap_err().to_string());
+            println!("{}", parse!($rule $input).unwrap_err().to_string());
         };
     }
 
@@ -548,6 +577,65 @@ mod tests {
             |       ^---
             |
             = expected double quoted string or escape sequence"#
+        }
+    }
+
+    #[test]
+    fn parse_raw_string() {
+        ok! { raw_string "```\nfoo\n\nbar\\nbaz\n```" => "foo\n\nbar\\nbaz".to_string() }
+        ok! { raw_string "```\n```\n```" => "```".to_string() }
+        ok! { raw_string "```\n\nabc\n\n```" => "\nabc\n".to_string() }
+        ok! { raw_string "```rust   \nfoobar\n```" => "foobar".to_string() }
+        ok! { raw_string "```rust   \n```rust\n```" => "```rust".to_string() }
+
+        ok! {
+            raw_string "```rust\n\t\t  f\n o \n obar  \t\t\n```" =>
+            "\t\t  f\n o \n obar  \t\t".to_string()
+        }
+
+        err! { raw_string "```foo^bar\ntest\n```" =>
+            " --> 1:1
+            |
+          1 | ```foo^bar
+            | ^---
+            |
+            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
+        }
+
+        err! { raw_string "```\n foo ```" =>
+            " --> 2:9
+            |
+          2 |  foo ```
+            |         ^---
+            |
+            = expected raw string end: a new line followed by ```"
+        }
+
+        err! { raw_string "```\n foo" =>
+            " --> 2:5
+            |
+          2 |  foo
+            |     ^---
+            |
+            = expected raw string end: a new line followed by ```"
+        }
+
+        err! { raw_string "``` foo" =>
+            " --> 1:4
+            |
+          1 | ``` foo
+            |    ^---
+            |
+            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
+        }
+
+        err! { raw_string "```rust foo" =>
+            " --> 1:1
+            |
+          1 | ```rust foo
+            | ^---
+            |
+            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
         }
     }
 
@@ -712,6 +800,7 @@ mod tests {
 
         ok! { rhs "\" foo bar \"" => AstLeaf::Value(Value::String(" foo bar ".into())) }
         ok! { rhs "' foo bar '" => AstLeaf::Value(Value::String(" foo bar ".into())) }
+        ok! { rhs "```rust\n foo\nbar \n```" => AstLeaf::Value(Value::String(" foo\nbar ".into())) }
     }
 
     #[test]
@@ -829,7 +918,7 @@ mod tests {
             AstNode::Fields(map!("foo_bar" =>
                 AstNode::Leaf(AstLeaf::UnitEnumVariant("Hello"))
             ))
-        };
+        }
 
         ok! {
             value_assignment "> `Hello` >    \n> `World` = true" =>
@@ -841,6 +930,13 @@ mod tests {
                 )
                 .into(),
             )
+        }
+
+        ok! {
+            value_assignment "> ['>'] = `Hello`" =>
+            AstNode::Map(map!(">".into() =>
+                AstNode::Leaf(AstLeaf::UnitEnumVariant("Hello"))
+            ))
         }
     }
 }
