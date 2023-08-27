@@ -1,41 +1,18 @@
+pub(crate) mod error;
 mod imp;
 mod insertion_point;
 mod path_item;
-mod type_name;
 
-use self::imp::{Node, ParseResult, Parser, Rule};
+use self::error::{ParseError, ParseResult};
+use self::imp::{Node, Parser, Rule};
 use crate::error::{Error, Result};
 use crate::value::ValueCell;
 use pest::Span;
 use pest_consume::{Error as PestError, Parser as PestParser};
 use std::cell::RefCell;
-use std::fmt;
 use std::rc::Rc;
 
 type Ast = Rc<RefCell<Option<ValueCell>>>;
-
-macro_rules! error {
-    ($span:expr, $msg:literal) => {
-        error!($span, $msg,)
-    };
-    ($span:expr, $msg:literal, $($arg:expr),*) => {
-        pest_consume::Error::new_from_span(pest::error::ErrorVariant::CustomError {
-            message: format!($msg, $($arg),*),
-        }, $span.clone())
-    }
-}
-
-use error;
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct ParseError(Box<PestError<Rule>>);
-
-impl fmt::Display for ParseError {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
 
 pub fn parse(input: &str) -> Result<ValueCell> {
     let ast = Rc::new(RefCell::new(None));

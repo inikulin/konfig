@@ -1,7 +1,7 @@
-use super::imp::{IntoParseResult, Node, ParseResult};
+use super::error::{parse_error, IntoParseResult, ParseResult, TypeName};
+use super::imp::Node;
 use super::path_item::PathItem;
-use super::type_name::TypeName;
-use super::{error, Parser, Span};
+use super::{Parser, Span};
 use crate::value::{Value, ValueCell};
 
 pub(super) struct InsertionPoint<'i> {
@@ -38,7 +38,7 @@ impl<'i> InsertionPoint<'i> {
                             span,
                         })
                     } else {
-                        Err(error!(
+                        Err(parse_error!(
                             assignment_span,
                             "attempt to assign {} to the path that was assigned {} previously",
                             rhs.borrow().type_name(),
@@ -49,7 +49,7 @@ impl<'i> InsertionPoint<'i> {
             }
         }
 
-        Err(error!(
+        Err(parse_error!(
             assignment_span,
             "attempt to assign {} to a path item that was previously defined as {}",
             rhs.borrow().type_name(),
@@ -62,7 +62,7 @@ impl<'i> InsertionPoint<'i> {
         match (&mut *self.host.borrow_mut(), self.path_item) {
             (Value::Sequence(seq), PathItem::Index(idx)) => {
                 if idx != seq.len() {
-                    return Err(error!(
+                    return Err(parse_error!(
                         self.span,
                         "sequence items must be defined in order; \
                         current sequence length: {}, specified item index: {}",

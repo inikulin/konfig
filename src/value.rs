@@ -65,6 +65,11 @@ impl ValueCell {
     pub(super) fn borrow_mut(&self) -> RefMut<Value> {
         self.0.borrow_mut()
     }
+
+    #[inline]
+    pub fn into_value(self) -> Value {
+        self.into()
+    }
 }
 
 impl Deref for ValueCell {

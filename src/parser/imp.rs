@@ -1,26 +1,11 @@
+use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::insertion_point::InsertionPoint;
 use super::path_item::PathItem;
-use super::{error, Ast, PestError, Span};
+use super::Ast;
 use crate::value::{Primitive, Value};
 use pest_consume::{match_nodes, Parser as PestParser};
 
 pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
-pub(super) type ParseResult<T> = std::result::Result<T, PestError<Rule>>;
-
-pub(super) trait IntoParseResult<T> {
-    #[allow(clippy::result_large_err)]
-    fn into_parse_result(self, span: Span) -> ParseResult<T>;
-}
-
-impl<T, E> IntoParseResult<T> for std::result::Result<T, E>
-where
-    E: ToString,
-{
-    #[inline]
-    fn into_parse_result(self, span: Span) -> ParseResult<T> {
-        self.map_err(|e| error!(span, "{}", e.to_string()))
-    }
-}
 
 #[derive(PestParser)]
 #[grammar = "./parser/grammar.pest"]
@@ -75,7 +60,7 @@ impl Parser {
         };
 
         0i64.checked_sub_unsigned(u64_repr)
-            .ok_or_else(|| error!(node.as_span(), "number too small to fit in target type"))
+            .ok_or_else(|| parse_error!(node.as_span(), "number too small to fit in target type"))
     }
 
     pub(super) fn float(node: Node) -> ParseResult<f64> {

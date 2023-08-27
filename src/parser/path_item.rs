@@ -1,6 +1,4 @@
-use super::error;
-use super::imp::ParseResult;
-use super::type_name::TypeName;
+use super::error::{parse_error, ParseResult, TypeName};
 use crate::value::{Value, ValueCell};
 use pest::Span;
 
@@ -17,7 +15,7 @@ impl<'i> PathItem<'i> {
     pub(super) fn into_value(self, prev: ValueCell, span: Span) -> ParseResult<ValueCell> {
         match self {
             PathItem::Index(0) => Ok(Value::Sequence(vec![prev])),
-            PathItem::Index(_) => Err(error!(
+            PathItem::Index(_) => Err(parse_error!(
                 span,
                 "sequence items should be defined in order, with the first item having index `0`"
             )),

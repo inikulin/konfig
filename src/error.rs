@@ -1,4 +1,4 @@
-use crate::parser::ParseError;
+pub use crate::parser::error::ParseError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
