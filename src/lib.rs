@@ -7,6 +7,8 @@ use crate::error::Result;
 use crate::ser::Serializer;
 use serde::Serialize;
 
+pub use self::value::Value;
+
 pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: Serialize + ?Sized,
