@@ -1,40 +1,30 @@
+pub mod ast;
+mod imp;
+mod insertion_point;
+mod type_name;
+
+use self::imp::{Node, ParseResult, Parser, Rule};
 use crate::error::{Error, Result};
-use pest::error::ErrorVariant;
 use pest::Span;
-use pest_consume::{match_nodes, Error as PestError, Parser as PestParser};
+use pest_consume::{Error as PestError, Parser as PestParser};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-pub type ParseResult<T> = std::result::Result<T, PestError<Rule>>;
-pub type Context<'i> = Rc<RefCell<Option<AstNode<'i>>>>;
-pub type Node<'i> = pest_consume::Node<'i, Rule, Context<'i>>;
+type Ast<'i> = Rc<RefCell<Option<ast::NodeCell<'i>>>>;
 
 macro_rules! error {
     ($span:expr, $msg:literal) => {
         error!($span, $msg,)
     };
     ($span:expr, $msg:literal, $($arg:expr),*) => {
-        PestError::new_from_span(ErrorVariant::CustomError {
+        pest_consume::Error::new_from_span(pest::error::ErrorVariant::CustomError {
             message: format!($msg, $($arg),*),
         }, $span.clone())
     }
 }
 
-macro_rules! map {
-    ($($k:expr => $v:expr),+) => {
-        {
-            let mut m = HashMap::new();
-
-            $(
-                m.insert($k, $v);
-            )+
-
-            m
-        }
-    };
-}
+use error;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ParseError(Box<PestError<Rule>>);
@@ -47,32 +37,6 @@ impl fmt::Display for ParseError {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum AstNode<'i> {
-    Sequence(Vec<AstNode<'i>>),
-    Map(HashMap<String, AstNode<'i>>),
-    NewTypeEnumVariant(&'i str, Box<AstNode<'i>>),
-    Fields(HashMap<&'i str, AstNode<'i>>),
-    Leaf(AstLeaf<'i>),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AstLeaf<'i> {
-    InlineSequence(Vec<Value>),
-    UnitEnumVariant(&'i str),
-    Value(Value),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Value {
-    Null,
-    Bool(bool),
-    PosInt(u64),
-    NegInt(i64),
-    Float(f64),
-    String(String),
-}
-
-#[derive(Debug, PartialEq)]
 enum PathItem<'i> {
     Index(usize),
     MapKey(String),
@@ -82,238 +46,28 @@ enum PathItem<'i> {
 
 impl<'i> PathItem<'i> {
     #[allow(clippy::result_large_err)]
-    fn into_ast_node(self, prev: AstNode<'i>, span: Span<'i>) -> ParseResult<AstNode<'i>> {
+    fn into_ast_node(
+        self,
+        prev: ast::NodeCell<'i>,
+        span: Span<'i>,
+    ) -> ParseResult<ast::NodeCell<'i>> {
         match self {
-            PathItem::Index(0) => Ok(AstNode::Sequence(vec![prev])),
+            PathItem::Index(0) => Ok(ast::Node::Sequence(vec![prev])),
             PathItem::Index(_) => Err(error!(
                 span,
                 "sequence items should be defined in order, with the first item having index `0`"
             )),
-            PathItem::MapKey(key) => Ok(AstNode::Map(map!(key => prev))),
-            PathItem::FieldName(name) => Ok(AstNode::Fields(map!(name => prev))),
-            PathItem::EnumVariant(variant) => Ok(AstNode::NewTypeEnumVariant(variant, prev.into())),
-        }
-    }
-}
-
-#[derive(PestParser)]
-#[grammar = "./parser/grammar.pest"]
-struct Parser;
-
-trait IntoParseResult<T> {
-    #[allow(clippy::result_large_err)]
-    fn into_parse_result(self, span: Span) -> ParseResult<T>;
-}
-
-impl<T, E> IntoParseResult<T> for std::result::Result<T, E>
-where
-    E: ToString,
-{
-    #[inline]
-    fn into_parse_result(self, span: Span) -> ParseResult<T> {
-        self.map_err(|e| error!(span, "{}", e.to_string()))
-    }
-}
-
-#[pest_consume::parser]
-impl Parser {
-    fn boolean(node: Node) -> ParseResult<bool> {
-        Ok(match node.children().single().unwrap().as_rule() {
-            Rule::boolean_true => true,
-            Rule::boolean_false => false,
-            _ => unreachable!(),
-        })
-    }
-
-    #[inline]
-    fn null(_node: Node) -> ParseResult<()> {
-        Ok(())
-    }
-
-    fn value(node: Node) -> ParseResult<Value> {
-        Ok(match_nodes! {
-            node.children();
-            [null(_)] => Value::Null,
-            [boolean(v)] => Value::Bool(v),
-            [pos_int(v)] => Value::PosInt(v),
-            [neg_int(v)] => Value::NegInt(v),
-            [float(v)] => Value::Float(v),
-            [single_quoted_string(v)] => Value::String(v),
-            [double_quoted_string(v)] => Value::String(v),
-            [raw_string(v)] => Value::String(v)
-        })
-    }
-
-    fn pos_int(node: Node) -> ParseResult<u64> {
-        let digits = node.children().single().unwrap();
-
-        let radix = match digits.as_rule() {
-            Rule::dec_digits => 10,
-            Rule::hex_digits => 16,
-            _ => unreachable!(),
-        };
-
-        u64::from_str_radix(digits.as_str(), radix).into_parse_result(node.as_span())
-    }
-
-    fn neg_int(node: Node) -> ParseResult<i64> {
-        let u64_repr = match_nodes! {
-            node.children();
-            [pos_int(i)] => i,
-        };
-
-        0i64.checked_sub_unsigned(u64_repr)
-            .ok_or_else(|| error!(node.as_span(), "number too small to fit in target type"))
-    }
-
-    fn float(node: Node) -> ParseResult<f64> {
-        node.as_str().parse().into_parse_result(node.as_span())
-    }
-
-    #[inline]
-    fn double_quoted_string(node: Node) -> ParseResult<String> {
-        _parse_quoted_string(node, Rule::double_quoted_string_text)
-    }
-
-    #[inline]
-    fn single_quoted_string(node: Node) -> ParseResult<String> {
-        _parse_quoted_string(node, Rule::single_quoted_string_text)
-    }
-
-    #[inline]
-    fn raw_string_start(_node: Node) -> ParseResult<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn raw_string_end(_node: Node) -> ParseResult<()> {
-        Ok(())
-    }
-
-    #[inline]
-    fn raw_string_text(node: Node) -> ParseResult<String> {
-        Ok(node.as_str().to_string())
-    }
-
-    fn raw_string(node: Node) -> ParseResult<String> {
-        Ok(match_nodes! {
-            node.children();
-            [raw_string_start(_), raw_string_text(t), raw_string_end(_)] => t,
-        })
-    }
-
-    fn esc(node: Node) -> ParseResult<Option<char>> {
-        Ok(match_nodes! {
-            node.children();
-            [esc_alias(c)] => c,
-            [esc_unicode(c)] => Some(c),
-        })
-    }
-
-    fn esc_alias(node: Node) -> ParseResult<Option<char>> {
-        Ok(match node.as_str() {
-            "\"" => Some('"'),
-            "\\" => Some('\\'),
-            "/" => Some('/'),
-            "b" => Some('\x08'),
-            "f" => Some('\x0C'),
-            "n" => Some('\n'),
-            "r" => Some('\r'),
-            "t" => Some('\t'),
-            "\n" | "\r" | "\r\n" => None,
-            _ => unreachable!(),
-        })
-    }
-
-    fn esc_unicode(node: Node) -> ParseResult<char> {
-        let code_point =
-            u32::from_str_radix(node.as_str(), 16).into_parse_result(node.as_span())?;
-
-        char::try_from(code_point).into_parse_result(node.as_span())
-    }
-
-    fn inline_sequence(node: Node) -> ParseResult<Vec<Value>> {
-        let mut seq = Vec::new();
-
-        if let Ok(values) = node.children().single() {
-            for node in values.children() {
-                seq.push(Parser::value(node)?);
+            PathItem::MapKey(key) => Ok(ast::Node::Map([(key, prev)].into_iter().collect())),
+            PathItem::FieldName(name) => {
+                Ok(ast::Node::Fields([(name, prev)].into_iter().collect()))
             }
+            PathItem::EnumVariant(variant) => Ok(ast::Node::NewTypeEnumVariant(variant, prev)),
         }
-
-        Ok(seq)
-    }
-
-    fn rhs(node: Node) -> ParseResult<AstLeaf> {
-        Ok(match_nodes! {
-            node.children();
-            [value(v)] => AstLeaf::Value(v),
-            [inline_sequence(s)] => AstLeaf::InlineSequence(s),
-            [enum_variant(v)] => AstLeaf::UnitEnumVariant(v),
-        })
-    }
-
-    fn enum_variant(node: Node) -> ParseResult<&str> {
-        Ok(node.children().single().unwrap().as_str())
-    }
-
-    fn index(node: Node) -> ParseResult<usize> {
-        node.children()
-            .single()
-            .unwrap()
-            .as_str()
-            .parse()
-            .into_parse_result(node.as_span())
-    }
-
-    fn field_name(node: Node) -> ParseResult<&str> {
-        Ok(node.as_str())
-    }
-
-    fn map_key(node: Node) -> ParseResult<String> {
-        Ok(match_nodes! {
-            node.children().single().unwrap().children();
-            [single_quoted_string(k)] => k,
-            [double_quoted_string(k)] => k,
-        })
-    }
-
-    fn path_item(node: Node) -> ParseResult<PathItem> {
-        Ok(match_nodes! {
-            node.children();
-            [field_name(n)] => PathItem::FieldName(n),
-            [enum_variant(v)] => PathItem::EnumVariant(v),
-            [map_key(k)] => PathItem::MapKey(k),
-            [index(i)] => PathItem::Index(i)
-        })
-    }
-
-    #[inline]
-    fn path(node: Node) -> ParseResult<Node> {
-        Ok(node)
-    }
-
-    fn value_assignment(node: Node) -> ParseResult<AstNode> {
-        let (path, rhs) = match_nodes! {
-            node.children();
-            [path(path_items), rhs(rhs)] => (path_items, rhs),
-        };
-
-        let mut ast_node = AstNode::Leaf(rhs);
-
-        for node in path.into_children().rev() {
-            if node.as_rule() == Rule::path_item {
-                let span = node.as_span();
-
-                ast_node = Parser::path_item(node)?.into_ast_node(ast_node, span)?;
-            }
-        }
-
-        Ok(ast_node)
+        .map(Into::into)
     }
 }
 
-pub fn parse(input: &str) -> Result<AstNode> {
+pub fn parse(input: &str) -> Result<ast::NodeCell> {
     let ast = Rc::new(RefCell::new(None));
 
     parse_rule(Rule::value_assignment, input, Rc::clone(&ast))
@@ -327,36 +81,14 @@ pub fn parse(input: &str) -> Result<AstNode> {
     Ok(ast_mut.take().unwrap())
 }
 
-// NOTE: Parser macro confuses the compiler making it think that the function is unused, so
-// we prefix it with `_` as a workaround.
 #[allow(clippy::result_large_err)]
-fn _parse_quoted_string(node: Node, text_rule: Rule) -> ParseResult<String> {
-    let mut string = String::default();
-    let content = node.children().single().unwrap();
-
-    for node in content.into_children() {
-        match node.as_rule() {
-            r if r == text_rule => string.push_str(node.as_str()),
-            Rule::esc => {
-                if let Some(esc) = Parser::esc(node)? {
-                    string.push(esc);
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    Ok(string)
-}
-
-#[allow(clippy::result_large_err)]
-fn parse_rule<'i>(rule: Rule, input: &'i str, ctx: Context<'i>) -> ParseResult<Node<'i>> {
-    Parser::parse_with_userdata(rule, input, ctx)
+fn parse_rule<'i>(rule: Rule, input: &'i str, ast: Ast<'i>) -> ParseResult<Node<'i>> {
+    Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
         .and_then(|p| p.single())
 }
 
-pub fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
+fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
     err.renamed_rules(|rule| {
         match rule {
             Rule::pos_int => "positive integer",
@@ -705,19 +437,19 @@ mod tests {
 
         ok! {
             inline_sequence "[ 41 ,  \n 42, 43, ]" =>
-            vec![Value::PosInt(41), Value::PosInt(42), Value::PosInt(43)]
+            vec![ast::Value::PosInt(41), ast::Value::PosInt(42), ast::Value::PosInt(43)]
         }
 
         ok! {
             inline_sequence "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
             vec![
-                Value::Null,
-                Value::Bool(true),
-                Value::PosInt(42),
-                Value::NegInt(-42),
-                Value::Float(42.42),
-                Value::String("foo bar".into()),
-                Value::String("baz qux".into())
+                ast::Value::Null,
+                ast::Value::Bool(true),
+                ast::Value::PosInt(42),
+                ast::Value::NegInt(-42),
+                ast::Value::Float(42.42),
+                ast::Value::String("foo bar".into()),
+                ast::Value::String("baz qux".into())
             ]
         }
 
@@ -775,32 +507,32 @@ mod tests {
 
     #[test]
     fn parse_rhs() {
-        ok! { rhs "`Foo`" => AstLeaf::UnitEnumVariant("Foo") }
+        ok! { rhs "`Foo`" => ast::Leaf::UnitEnumVariant("Foo") }
 
         ok! {
             rhs "[1, 2]" =>
-            AstLeaf::InlineSequence(vec![Value::PosInt(1), Value::PosInt(2)])
+            ast::Leaf::InlineSequence(vec![ast::Value::PosInt(1), ast::Value::PosInt(2)])
         }
 
-        ok! { rhs "null" => AstLeaf::Value(Value::Null) }
+        ok! { rhs "null" => ast::Leaf::Value(ast::Value::Null) }
 
-        ok! { rhs "true" => AstLeaf::Value(Value::Bool(true)) }
-        ok! { rhs "false" => AstLeaf::Value(Value::Bool(false)) }
+        ok! { rhs "true" => ast::Leaf::Value(ast::Value::Bool(true)) }
+        ok! { rhs "false" => ast::Leaf::Value(ast::Value::Bool(false)) }
 
-        ok! { rhs "42" => AstLeaf::Value(Value::PosInt(42)) }
-        ok! { rhs "0x2A" => AstLeaf::Value(Value::PosInt(42)) }
+        ok! { rhs "42" => ast::Leaf::Value(ast::Value::PosInt(42)) }
+        ok! { rhs "0x2A" => ast::Leaf::Value(ast::Value::PosInt(42)) }
 
-        ok! { rhs "-42" => AstLeaf::Value(Value::NegInt(-42)) }
-        ok! { rhs "-0x2A" => AstLeaf::Value(Value::NegInt(-42)) }
+        ok! { rhs "-42" => ast::Leaf::Value(ast::Value::NegInt(-42)) }
+        ok! { rhs "-0x2A" => ast::Leaf::Value(ast::Value::NegInt(-42)) }
 
-        ok! { rhs "42." => AstLeaf::Value(Value::Float(42.0)) }
-        ok! { rhs "42.42" => AstLeaf::Value(Value::Float(42.42)) }
-        ok! { rhs "-42.42" => AstLeaf::Value(Value::Float(-42.42)) }
-        ok! { rhs "1.956e-10" => AstLeaf::Value(Value::Float(1.956e-10)) }
+        ok! { rhs "42." => ast::Leaf::Value(ast::Value::Float(42.0)) }
+        ok! { rhs "42.42" => ast::Leaf::Value(ast::Value::Float(42.42)) }
+        ok! { rhs "-42.42" => ast::Leaf::Value(ast::Value::Float(-42.42)) }
+        ok! { rhs "1.956e-10" => ast::Leaf::Value(ast::Value::Float(1.956e-10)) }
 
-        ok! { rhs "\" foo bar \"" => AstLeaf::Value(Value::String(" foo bar ".into())) }
-        ok! { rhs "' foo bar '" => AstLeaf::Value(Value::String(" foo bar ".into())) }
-        ok! { rhs "```rust\n foo\nbar \n```" => AstLeaf::Value(Value::String(" foo\nbar ".into())) }
+        ok! { rhs "\" foo bar \"" => ast::Leaf::Value(ast::Value::String(" foo bar ".into())) }
+        ok! { rhs "' foo bar '" => ast::Leaf::Value(ast::Value::String(" foo bar ".into())) }
+        ok! { rhs "```rust\n foo\nbar \n```" => ast::Leaf::Value(ast::Value::String(" foo\nbar ".into())) }
     }
 
     #[test]
@@ -878,65 +610,5 @@ mod tests {
         ok! { path_item "[42]" => PathItem::Index(42) }
         ok! { path_item "[\"foobar\"]" => PathItem::MapKey("foobar".into()) }
         ok! { path_item "['foobar']" => PathItem::MapKey("foobar".into()) }
-    }
-
-    #[test]
-    fn value_assignment() {
-        ok! {
-            value_assignment "> foo > bar   > baz = 42" =>
-            AstNode::Fields(map!(
-                "foo" => AstNode::Fields(map!(
-                    "bar" => AstNode::Fields(map!(
-                        "baz" => AstNode::Leaf(AstLeaf::Value(Value::PosInt(42)))
-                    ))
-                ))
-            ))
-        };
-
-        ok! {
-            value_assignment "> foo_bar > [0] > `Baz` > ['qux quz'] = [1, 2, 3]" =>
-            AstNode::Fields(map!(
-                "foo_bar" => AstNode::Sequence(vec![
-                    AstNode::NewTypeEnumVariant("Baz", AstNode::Map(map!(
-                        "qux quz".into() => AstNode::Leaf(AstLeaf::InlineSequence(vec![
-                            Value::PosInt(1),
-                            Value::PosInt(2),
-                            Value::PosInt(3),
-                        ]))
-                    )).into())
-                ])
-            ))
-        }
-
-        ok! {
-            value_assignment "> = `Hello`" =>
-            AstNode::Leaf(AstLeaf::UnitEnumVariant("Hello"))
-        };
-
-        ok! {
-            value_assignment "> foo_bar = `Hello`" =>
-            AstNode::Fields(map!("foo_bar" =>
-                AstNode::Leaf(AstLeaf::UnitEnumVariant("Hello"))
-            ))
-        }
-
-        ok! {
-            value_assignment "> `Hello` >    \n> `World` = true" =>
-            AstNode::NewTypeEnumVariant(
-                "Hello",
-                AstNode::NewTypeEnumVariant(
-                    "World",
-                    AstNode::Leaf(AstLeaf::Value(Value::Bool(true))).into(),
-                )
-                .into(),
-            )
-        }
-
-        ok! {
-            value_assignment "> ['>'] = `Hello`" =>
-            AstNode::Map(map!(">".into() =>
-                AstNode::Leaf(AstLeaf::UnitEnumVariant("Hello"))
-            ))
-        }
     }
 }
