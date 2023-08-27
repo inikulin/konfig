@@ -81,9 +81,17 @@ pub fn parse(input: &str) -> Result<ast::NodeCell> {
 
 #[allow(clippy::result_large_err)]
 fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
-    Parser::parse_with_userdata(rule, input, ast)
+    #[cfg(test)]
+    ast::node_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(true));
+
+    let res = Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
-        .and_then(|p| p.single())
+        .and_then(|p| p.single());
+
+    #[cfg(test)]
+    ast::node_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
+
+    res
 }
 
 fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
