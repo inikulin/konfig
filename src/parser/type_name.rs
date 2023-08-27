@@ -1,4 +1,5 @@
-use super::{ast, PathItem};
+use super::path_item::PathItem;
+use crate::value::{Primitive, Value};
 use std::borrow::Cow;
 
 pub(super) trait TypeName {
@@ -16,38 +17,29 @@ impl TypeName for PathItem<'_> {
     }
 }
 
-impl TypeName for ast::Node {
+impl TypeName for Value {
     fn type_name(&self) -> Cow<'static, str> {
         match self {
-            ast::Node::Fields(_) => "structure".into(),
-            ast::Node::Map(_) => "map".into(),
-            ast::Node::NewTypeEnumVariant(v, _) => format!("new type enum variant `{v}`").into(),
-            ast::Node::Sequence(_) => "sequence".into(),
-            ast::Node::Leaf(l) => l.type_name(),
+            Value::Struct(_) => "structure".into(),
+            Value::Map(_) => "map".into(),
+            Value::Variant(v, _) => format!("new type enum variant `{v}`").into(),
+            Value::Sequence(_) => "sequence".into(),
+            Value::PrimitiveSequence(_) => "inline sequence".into(),
+            Value::Primitive(v) => v.type_name(),
         }
     }
 }
 
-impl TypeName for ast::Leaf {
+impl TypeName for Primitive {
     fn type_name(&self) -> Cow<'static, str> {
         match self {
-            ast::Leaf::InlineSequence(_) => "inline sequence".into(),
-            ast::Leaf::UnitEnumVariant(v) => format!("unit enum variant `{v}`").into(),
-            ast::Leaf::Value(v) => v.type_name(),
+            Primitive::Bool(_) => "boolean value".into(),
+            Primitive::Float(_) => "floating point number value".into(),
+            Primitive::NegInt(_) => "negative integer value".into(),
+            Primitive::PosInt(_) => "positive integer value".into(),
+            Primitive::Null => "null value".into(),
+            Primitive::String(_) => "string value".into(),
+            Primitive::UnitVariant(v) => format!("unit enum variant `{v}`").into(),
         }
-    }
-}
-
-impl TypeName for ast::Value {
-    fn type_name(&self) -> Cow<'static, str> {
-        match self {
-            ast::Value::Bool(_) => "boolean value",
-            ast::Value::Float(_) => "floating point number value",
-            ast::Value::NegInt(_) => "negative integer value",
-            ast::Value::PosInt(_) => "positive integer value",
-            ast::Value::Null => "null value",
-            ast::Value::String(_) => "string value",
-        }
-        .into()
     }
 }

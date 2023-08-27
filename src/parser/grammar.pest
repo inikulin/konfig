@@ -22,17 +22,17 @@ index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 
 // RHS
 //--------------------------------------------------------------------------------------------
-rhs = { inline_sequence | enum_variant | value }
+rhs = { primitive_sequence | primitive }
 
-inline_sequence = { "[" ~ inline_sequence_values? ~ "]" }
-inline_sequence_values = { value ~ ( "," ~ value )* ~ ","? }
+primitive_sequence = { "[" ~ primitive_sequence_values? ~ "]" }
+primitive_sequence_values = { primitive ~ ( "," ~ primitive )* ~ ","? }
 
 
-// Values
+// Primitives
 //--------------------------------------------------------------------------------------------
-value = { 
+primitive = { 
     null | boolean | float | neg_int | pos_int | single_quoted_string | double_quoted_string |
-    raw_string
+    raw_string | enum_variant
 }
 
 null = { "null" }

@@ -1,6 +1,7 @@
 pub mod error;
 pub mod parser;
 pub mod ser;
+pub mod value;
 
 use crate::error::Result;
 use crate::ser::Serializer;

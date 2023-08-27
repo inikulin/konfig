@@ -1,9 +1,11 @@
 use super::imp::{IntoParseResult, Node, ParseResult};
+use super::path_item::PathItem;
 use super::type_name::TypeName;
-use super::{ast, error, Parser, PathItem, Span};
+use super::{error, Parser, Span};
+use crate::value::{Value, ValueCell};
 
 pub(super) struct InsertionPoint<'i> {
-    host_node: ast::NodeCell,
+    host: ValueCell,
     path_item: PathItem<'i>,
     span: Span<'i>,
 }
@@ -12,23 +14,26 @@ impl<'i> InsertionPoint<'i> {
     #[allow(clippy::result_large_err)]
     pub(super) fn find(
         path: &mut impl Iterator<Item = Node<'i>>,
-        rhs: &ast::NodeCell,
+        rhs: &ValueCell,
         assignment_span: Span,
-        ast: ast::NodeCell,
+        root: ValueCell,
     ) -> ParseResult<InsertionPoint<'i>> {
-        let mut host_node = ast;
+        let mut host = root;
 
         for node in path.by_ref() {
             let span = node.as_span();
             let path_item = Parser::path_item(node)?;
-            let next = host_node.borrow().get(&path_item).into_parse_result(span)?;
+
+            let next = path_item
+                .index_value(&host.borrow())
+                .into_parse_result(span)?;
 
             match next {
-                Some(next) => host_node = next,
+                Some(next) => host = next,
                 None => {
-                    return if host_node.borrow().is_multitenant() {
+                    return if host.borrow().is_multitenant() {
                         Ok(InsertionPoint {
-                            host_node,
+                            host,
                             path_item,
                             span,
                         })
@@ -37,7 +42,7 @@ impl<'i> InsertionPoint<'i> {
                             assignment_span,
                             "attempt to assign {} to the path that was assigned {} previously",
                             rhs.borrow().type_name(),
-                            host_node.borrow().type_name()
+                            host.borrow().type_name()
                         ))
                     }
                 }
@@ -48,14 +53,14 @@ impl<'i> InsertionPoint<'i> {
             assignment_span,
             "attempt to assign {} to a path item that was previously defined as {}",
             rhs.borrow().type_name(),
-            host_node.borrow().type_name()
+            host.borrow().type_name()
         ))
     }
 
     #[allow(clippy::result_large_err)]
-    pub(super) fn insert(self, new_node: ast::NodeCell) -> ParseResult<()> {
-        match (&mut *self.host_node.borrow_mut(), self.path_item) {
-            (ast::Node::Sequence(seq), PathItem::Index(idx)) => {
+    pub(super) fn insert(self, new_value: ValueCell) -> ParseResult<()> {
+        match (&mut *self.host.borrow_mut(), self.path_item) {
+            (Value::Sequence(seq), PathItem::Index(idx)) => {
                 if idx != seq.len() {
                     return Err(error!(
                         self.span,
@@ -66,13 +71,13 @@ impl<'i> InsertionPoint<'i> {
                     ));
                 }
 
-                seq.push(new_node);
+                seq.push(new_value);
             }
-            (ast::Node::Fields(fields), PathItem::FieldName(name)) => {
-                fields.insert(name.to_string(), new_node);
+            (Value::Struct(fields), PathItem::FieldName(name)) => {
+                fields.insert(name.to_string(), new_value);
             }
-            (ast::Node::Map(map), PathItem::MapKey(key)) => {
-                map.insert(key, new_node);
+            (Value::Map(map), PathItem::MapKey(key)) => {
+                map.insert(key, new_value);
             }
             _ => unreachable!(),
         }

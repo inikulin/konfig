@@ -1,5 +1,7 @@
 use super::insertion_point::InsertionPoint;
-use super::{ast, error, Ast, PathItem, PestError, Span};
+use super::path_item::PathItem;
+use super::{error, Ast, PestError, Span};
+use crate::value::{Primitive, Value};
 use pest_consume::{match_nodes, Parser as PestParser};
 
 pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
@@ -39,17 +41,18 @@ impl Parser {
         Ok(())
     }
 
-    pub(super) fn value(node: Node) -> ParseResult<ast::Value> {
+    pub(super) fn primitive(node: Node) -> ParseResult<Primitive> {
         Ok(match_nodes! {
             node.children();
-            [null(_)] => ast::Value::Null,
-            [boolean(v)] => ast::Value::Bool(v),
-            [pos_int(v)] => ast::Value::PosInt(v),
-            [neg_int(v)] => ast::Value::NegInt(v),
-            [float(v)] => ast::Value::Float(v),
-            [single_quoted_string(v)] => ast::Value::String(v),
-            [double_quoted_string(v)] => ast::Value::String(v),
-            [raw_string(v)] => ast::Value::String(v)
+            [null(_)] => Primitive::Null,
+            [boolean(v)] => Primitive::Bool(v),
+            [pos_int(v)] => Primitive::PosInt(v),
+            [neg_int(v)] => Primitive::NegInt(v),
+            [float(v)] => Primitive::Float(v),
+            [single_quoted_string(v)] => Primitive::String(v),
+            [double_quoted_string(v)] => Primitive::String(v),
+            [raw_string(v)] => Primitive::String(v),
+            [enum_variant(v)] => Primitive::UnitVariant(v.to_string()),
         })
     }
 
@@ -141,24 +144,23 @@ impl Parser {
         char::try_from(code_point).into_parse_result(node.as_span())
     }
 
-    pub(super) fn inline_sequence(node: Node) -> ParseResult<Vec<ast::Value>> {
+    pub(super) fn primitive_sequence(node: Node) -> ParseResult<Vec<Primitive>> {
         let mut seq = Vec::new();
 
         if let Ok(values) = node.children().single() {
             for node in values.children() {
-                seq.push(Parser::value(node)?);
+                seq.push(Parser::primitive(node)?);
             }
         }
 
         Ok(seq)
     }
 
-    pub(super) fn rhs(node: Node) -> ParseResult<ast::Leaf> {
+    pub(super) fn rhs(node: Node) -> ParseResult<Value> {
         Ok(match_nodes! {
             node.children();
-            [value(v)] => ast::Leaf::Value(v),
-            [inline_sequence(s)] => ast::Leaf::InlineSequence(s),
-            [enum_variant(v)] => ast::Leaf::UnitEnumVariant(v.to_string()),
+            [primitive(v)] => Value::Primitive(v),
+            [primitive_sequence(s)] => Value::PrimitiveSequence(s),
         })
     }
 
@@ -213,27 +215,27 @@ impl Parser {
             ),
         };
 
-        let mut new_node = ast::Node::Leaf(rhs).into();
+        let mut new_value = rhs.into();
         let mut insertion_point = None;
 
-        if let Some(ast) = node.user_data().borrow().as_ref() {
+        if let Some(root) = node.user_data().borrow().as_ref() {
             insertion_point = Some(InsertionPoint::find(
                 &mut path,
-                &new_node,
+                &new_value,
                 span,
-                ast.rc_clone(),
+                root.rc_clone(),
             )?);
         }
 
         for node in path.rev() {
             let span = node.as_span();
 
-            new_node = Parser::path_item(node)?.into_ast_node(new_node, span)?;
+            new_value = Parser::path_item(node)?.into_value(new_value, span)?;
         }
 
         match insertion_point {
-            Some(insertion_point) => insertion_point.insert(new_node)?,
-            None => *node.user_data().borrow_mut() = Some(new_node),
+            Some(insertion_point) => insertion_point.insert(new_value)?,
+            None => *node.user_data().borrow_mut() = Some(new_value),
         }
 
         Ok(())

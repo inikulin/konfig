@@ -1,17 +1,18 @@
-pub mod ast;
 mod imp;
 mod insertion_point;
+mod path_item;
 mod type_name;
 
 use self::imp::{Node, ParseResult, Parser, Rule};
 use crate::error::{Error, Result};
+use crate::value::ValueCell;
 use pest::Span;
 use pest_consume::{Error as PestError, Parser as PestParser};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-type Ast = Rc<RefCell<Option<ast::NodeCell>>>;
+type Ast = Rc<RefCell<Option<ValueCell>>>;
 
 macro_rules! error {
     ($span:expr, $msg:literal) => {
@@ -36,36 +37,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum PathItem<'i> {
-    Index(usize),
-    MapKey(String),
-    FieldName(&'i str),
-    EnumVariant(&'i str),
-}
-
-impl<'i> PathItem<'i> {
-    #[allow(clippy::result_large_err)]
-    fn into_ast_node(self, prev: ast::NodeCell, span: Span) -> ParseResult<ast::NodeCell> {
-        match self {
-            PathItem::Index(0) => Ok(ast::Node::Sequence(vec![prev])),
-            PathItem::Index(_) => Err(error!(
-                span,
-                "sequence items should be defined in order, with the first item having index `0`"
-            )),
-            PathItem::MapKey(key) => Ok(ast::Node::Map([(key, prev)].into_iter().collect())),
-            PathItem::FieldName(name) => Ok(ast::Node::Fields(
-                [(name.to_string(), prev)].into_iter().collect(),
-            )),
-            PathItem::EnumVariant(variant) => {
-                Ok(ast::Node::NewTypeEnumVariant(variant.to_string(), prev))
-            }
-        }
-        .map(Into::into)
-    }
-}
-
-pub fn parse(input: &str) -> Result<ast::NodeCell> {
+pub fn parse(input: &str) -> Result<ValueCell> {
     let ast = Rc::new(RefCell::new(None));
 
     parse_rule(Rule::value_assignment, input, Rc::clone(&ast))
@@ -82,14 +54,14 @@ pub fn parse(input: &str) -> Result<ast::NodeCell> {
 #[allow(clippy::result_large_err)]
 fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
     #[cfg(test)]
-    ast::node_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(true));
+    crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(true));
 
     let res = Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
         .and_then(|p| p.single());
 
     #[cfg(test)]
-    ast::node_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
+    crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
 
     res
 }
@@ -103,7 +75,7 @@ fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::dec_digits => "digits",
             Rule::null => "`null`",
             Rule::boolean | Rule::boolean_true | Rule::boolean_false => "boolean value",
-            Rule::value => "value",
+            Rule::primitive => "primitive value",
             Rule::float => "floating point number",
             Rule::exponent => "exponent",
             Rule::double_quoted_string
@@ -115,7 +87,7 @@ fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::esc => "escape sequence",
             Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or a new line",
             Rule::esc_unicode => "unicode character escape sequence",
-            Rule::inline_sequence | Rule::inline_sequence_values => "inline sequence",
+            Rule::primitive_sequence | Rule::primitive_sequence_values => "sequence of primitive values",
             Rule::rhs => "assignment right hand side",
             Rule::index | Rule::index_digits => "sequence index",
             Rule::field_name => "field name",
@@ -140,7 +112,9 @@ fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
 
 #[cfg(test)]
 mod tests {
+    use super::path_item::PathItem;
     use super::*;
+    use crate::value::{Primitive, Value};
     use indoc::indoc;
 
     macro_rules! parse {
@@ -437,44 +411,44 @@ mod tests {
     }
 
     #[test]
-    fn parse_inline_sequence() {
-        ok! { inline_sequence "[ ]" => vec![] }
-        ok! { inline_sequence "[ \n ]" => vec![] }
+    fn parse_primitive_sequence() {
+        ok! { primitive_sequence "[ ]" => vec![] }
+        ok! { primitive_sequence "[ \n ]" => vec![] }
 
         ok! {
-            inline_sequence "[ 41 ,  \n 42, 43, ]" =>
-            vec![ast::Value::PosInt(41), ast::Value::PosInt(42), ast::Value::PosInt(43)]
+            primitive_sequence "[ 41 ,  \n 42, 43, ]" =>
+            vec![Primitive::PosInt(41), Primitive::PosInt(42), Primitive::PosInt(43)]
         }
 
         ok! {
-            inline_sequence "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
+            primitive_sequence "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
             vec![
-                ast::Value::Null,
-                ast::Value::Bool(true),
-                ast::Value::PosInt(42),
-                ast::Value::NegInt(-42),
-                ast::Value::Float(42.42),
-                ast::Value::String("foo bar".into()),
-                ast::Value::String("baz qux".into())
+                Primitive::Null,
+                Primitive::Bool(true),
+                Primitive::PosInt(42),
+                Primitive::NegInt(-42),
+                Primitive::Float(42.42),
+                Primitive::String("foo bar".into()),
+                Primitive::String("baz qux".into())
             ]
         }
 
-        err! { inline_sequence "[ , ]" =>
+        err! { primitive_sequence "[ , ]" =>
             " --> 1:3
             |
           1 | [ , ]
             |   ^---
             |
-            = expected value"
+            = expected primitive value"
         }
 
-        err! { inline_sequence "[ true, nottrue ]" =>
+        err! { primitive_sequence "[ true, nottrue ]" =>
             " --> 1:9
             |
           1 | [ true, nottrue ]
             |         ^---
             |
-            = expected value"
+            = expected primitive value"
         }
     }
 
@@ -513,32 +487,32 @@ mod tests {
 
     #[test]
     fn parse_rhs() {
-        ok! { rhs "`Foo`" => ast::Leaf::UnitEnumVariant("Foo".into()) }
+        ok! { rhs "`Foo`" => Value::Primitive(Primitive::UnitVariant("Foo".into())) }
 
         ok! {
             rhs "[1, 2]" =>
-            ast::Leaf::InlineSequence(vec![ast::Value::PosInt(1), ast::Value::PosInt(2)])
+            Value::PrimitiveSequence(vec![Primitive::PosInt(1), Primitive::PosInt(2)])
         }
 
-        ok! { rhs "null" => ast::Leaf::Value(ast::Value::Null) }
+        ok! { rhs "null" => Value::Primitive(Primitive::Null) }
 
-        ok! { rhs "true" => ast::Leaf::Value(ast::Value::Bool(true)) }
-        ok! { rhs "false" => ast::Leaf::Value(ast::Value::Bool(false)) }
+        ok! { rhs "true" => Value::Primitive(Primitive::Bool(true)) }
+        ok! { rhs "false" => Value::Primitive(Primitive::Bool(false)) }
 
-        ok! { rhs "42" => ast::Leaf::Value(ast::Value::PosInt(42)) }
-        ok! { rhs "0x2A" => ast::Leaf::Value(ast::Value::PosInt(42)) }
+        ok! { rhs "42" => Value::Primitive(Primitive::PosInt(42)) }
+        ok! { rhs "0x2A" => Value::Primitive(Primitive::PosInt(42)) }
 
-        ok! { rhs "-42" => ast::Leaf::Value(ast::Value::NegInt(-42)) }
-        ok! { rhs "-0x2A" => ast::Leaf::Value(ast::Value::NegInt(-42)) }
+        ok! { rhs "-42" => Value::Primitive(Primitive::NegInt(-42)) }
+        ok! { rhs "-0x2A" => Value::Primitive(Primitive::NegInt(-42)) }
 
-        ok! { rhs "42." => ast::Leaf::Value(ast::Value::Float(42.0)) }
-        ok! { rhs "42.42" => ast::Leaf::Value(ast::Value::Float(42.42)) }
-        ok! { rhs "-42.42" => ast::Leaf::Value(ast::Value::Float(-42.42)) }
-        ok! { rhs "1.956e-10" => ast::Leaf::Value(ast::Value::Float(1.956e-10)) }
+        ok! { rhs "42." => Value::Primitive(Primitive::Float(42.0)) }
+        ok! { rhs "42.42" => Value::Primitive(Primitive::Float(42.42)) }
+        ok! { rhs "-42.42" => Value::Primitive(Primitive::Float(-42.42)) }
+        ok! { rhs "1.956e-10" => Value::Primitive(Primitive::Float(1.956e-10)) }
 
-        ok! { rhs "\" foo bar \"" => ast::Leaf::Value(ast::Value::String(" foo bar ".into())) }
-        ok! { rhs "' foo bar '" => ast::Leaf::Value(ast::Value::String(" foo bar ".into())) }
-        ok! { rhs "```rust\n foo\nbar \n```" => ast::Leaf::Value(ast::Value::String(" foo\nbar ".into())) }
+        ok! { rhs "\" foo bar \"" => Value::Primitive(Primitive::String(" foo bar ".into())) }
+        ok! { rhs "' foo bar '" => Value::Primitive(Primitive::String(" foo bar ".into())) }
+        ok! { rhs "```rust\n foo\nbar \n```" => Value::Primitive(Primitive::String(" foo\nbar ".into())) }
     }
 
     #[test]

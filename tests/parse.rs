@@ -1,5 +1,5 @@
-use konfig::parser::ast::{Leaf, Node, Value};
 use konfig::parser::parse;
+use konfig::value::{Primitive, Value};
 use std::collections::HashMap;
 
 macro_rules! map {
@@ -26,10 +26,10 @@ macro_rules! ok {
 fn simple_assignment() {
     ok! {
         "> foo > bar   > baz = 42" =>
-        Node::Fields(map!(
-            "foo" => Node::Fields(map!(
-                "bar" => Node::Fields(map!(
-                    "baz" => Node::Leaf(Leaf::Value(Value::PosInt(42))).into()
+        Value::Struct(map!(
+            "foo" => Value::Struct(map!(
+                "bar" => Value::Struct(map!(
+                    "baz" => Value::Primitive(Primitive::PosInt(42)).into()
                 )).into()
             )).into()
         )).into()
@@ -37,16 +37,15 @@ fn simple_assignment() {
 
     ok! {
         "> foo_bar > [0] > `Baz` > ['qux quz'] = [1, 2, 3]" =>
-        Node::Fields(map!(
-            "foo_bar" => Node::Sequence(vec![
-                Node::NewTypeEnumVariant("Baz".into(),
-                    Node::Map(map!(
-                        "qux quz" => Node::Leaf(
-                            Leaf::InlineSequence(vec![
-                                Value::PosInt(1),
-                                Value::PosInt(2),
-                                Value::PosInt(3),
-                            ])).into()
+        Value::Struct(map!(
+            "foo_bar" => Value::Sequence(vec![
+                Value::Variant("Baz".into(),
+                    Value::Map(map!(
+                        "qux quz" => Value::PrimitiveSequence(vec![
+                                Primitive::PosInt(1),
+                                Primitive::PosInt(2),
+                                Primitive::PosInt(3),
+                            ]).into()
                     )).into()
                 ).into()
             ]).into()
@@ -55,23 +54,23 @@ fn simple_assignment() {
 
     ok! {
         "> = `Hello`" =>
-        Node::Leaf(Leaf::UnitEnumVariant("Hello".into())).into()
+        Value::Primitive(Primitive::UnitVariant("Hello".into())).into()
     };
 
     ok! {
         "> foo_bar = `Hello`" =>
-        Node::Fields(map!("foo_bar" =>
-            Node::Leaf(Leaf::UnitEnumVariant("Hello".into())).into()
+        Value::Struct(map!("foo_bar" =>
+            Value::Primitive(Primitive::UnitVariant("Hello".into())).into()
         )).into()
     }
 
     ok! {
         "> `Hello` >    \n> `World` = true" =>
-        Node::NewTypeEnumVariant(
+        Value::Variant(
             "Hello".into(),
-            Node::NewTypeEnumVariant(
+            Value::Variant(
                 "World".into(),
-                Node::Leaf(Leaf::Value(Value::Bool(true))).into(),
+                Value::Primitive(Primitive::Bool(true)).into(),
             )
             .into(),
         ).into()
@@ -79,8 +78,8 @@ fn simple_assignment() {
 
     ok! {
         "> ['>'] = `Hello`" =>
-        Node::Map(map!(">" =>
-            Node::Leaf(Leaf::UnitEnumVariant("Hello".into())).into()
+        Value::Map(map!(">" =>
+            Value::Primitive(Primitive::UnitVariant("Hello".into())).into()
         )).into()
     }
 }
