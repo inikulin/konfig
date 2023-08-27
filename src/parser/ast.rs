@@ -4,36 +4,38 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-pub type NodeCell<'i> = Rc<RefCell<Node<'i>>>;
+pub type NodeCell = Rc<RefCell<Node>>;
 
 #[derive(Debug, PartialEq)]
-pub enum Node<'i> {
-    Sequence(Vec<NodeCell<'i>>),
-    Map(HashMap<String, NodeCell<'i>>),
-    NewTypeEnumVariant(&'i str, NodeCell<'i>),
-    Fields(HashMap<&'i str, NodeCell<'i>>),
-    Leaf(Leaf<'i>),
+pub enum Node {
+    Sequence(Vec<NodeCell>),
+    Map(HashMap<String, NodeCell>),
+    NewTypeEnumVariant(String, NodeCell),
+    Fields(HashMap<String, NodeCell>),
+    Leaf(Leaf),
 }
 
-impl Node<'_> {
+impl Node {
     pub(super) fn is_multitenant(&self) -> bool {
         matches!(self, Node::Sequence(_) | Node::Map(_) | Node::Fields(_))
     }
 }
 
-impl<'i> From<Node<'i>> for NodeCell<'i> {
-    fn from(node: Node<'i>) -> Self {
+impl From<Node> for NodeCell {
+    fn from(node: Node) -> Self {
         Rc::new(RefCell::new(node))
     }
 }
 
-impl<'i> Node<'i> {
-    pub(super) fn get(&self, index: &PathItem<'i>) -> Result<Option<NodeCell<'i>>, String> {
+impl Node {
+    pub(super) fn get(&self, index: &PathItem) -> Result<Option<NodeCell>, String> {
         match (index, self) {
-            (PathItem::Index(i), Node::Sequence(s)) => Ok(s.get(*i).map(Rc::clone)),
-            (PathItem::MapKey(k), Node::Map(m)) => Ok(m.get(k).map(Rc::clone)),
-            (PathItem::FieldName(n), Node::Fields(f)) => Ok(f.get(n).map(Rc::clone)),
-            (PathItem::EnumVariant(v1), Node::NewTypeEnumVariant(v2, node)) if v1 == v2 => {
+            (PathItem::Index(idx), Node::Sequence(seq)) => Ok(seq.get(*idx).map(Rc::clone)),
+            (PathItem::MapKey(key), Node::Map(map)) => Ok(map.get(key).map(Rc::clone)),
+            (PathItem::FieldName(name), Node::Fields(fields)) => {
+                Ok(fields.get(*name).map(Rc::clone))
+            }
+            (PathItem::EnumVariant(var1), Node::NewTypeEnumVariant(var2, node)) if var1 == var2 => {
                 Ok(Some(Rc::clone(node)))
             }
             _ => Err(format!(
@@ -46,9 +48,9 @@ impl<'i> Node<'i> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Leaf<'i> {
+pub enum Leaf {
     InlineSequence(Vec<Value>),
-    UnitEnumVariant(&'i str),
+    UnitEnumVariant(String),
     Value(Value),
 }
 

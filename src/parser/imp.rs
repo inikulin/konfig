@@ -3,7 +3,7 @@ use super::{ast, error, Ast, PathItem, PestError, Span};
 use pest_consume::{match_nodes, Parser as PestParser};
 use std::rc::Rc;
 
-pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast<'i>>;
+pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
 pub(super) type ParseResult<T> = std::result::Result<T, PestError<Rule>>;
 
 pub(super) trait IntoParseResult<T> {
@@ -159,7 +159,7 @@ impl Parser {
             node.children();
             [value(v)] => ast::Leaf::Value(v),
             [inline_sequence(s)] => ast::Leaf::InlineSequence(s),
-            [enum_variant(v)] => ast::Leaf::UnitEnumVariant(v),
+            [enum_variant(v)] => ast::Leaf::UnitEnumVariant(v.to_string()),
         })
     }
 

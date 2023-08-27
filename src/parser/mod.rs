@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-type Ast<'i> = Rc<RefCell<Option<ast::NodeCell<'i>>>>;
+type Ast = Rc<RefCell<Option<ast::NodeCell>>>;
 
 macro_rules! error {
     ($span:expr, $msg:literal) => {
@@ -46,11 +46,7 @@ enum PathItem<'i> {
 
 impl<'i> PathItem<'i> {
     #[allow(clippy::result_large_err)]
-    fn into_ast_node(
-        self,
-        prev: ast::NodeCell<'i>,
-        span: Span<'i>,
-    ) -> ParseResult<ast::NodeCell<'i>> {
+    fn into_ast_node(self, prev: ast::NodeCell, span: Span) -> ParseResult<ast::NodeCell> {
         match self {
             PathItem::Index(0) => Ok(ast::Node::Sequence(vec![prev])),
             PathItem::Index(_) => Err(error!(
@@ -58,10 +54,12 @@ impl<'i> PathItem<'i> {
                 "sequence items should be defined in order, with the first item having index `0`"
             )),
             PathItem::MapKey(key) => Ok(ast::Node::Map([(key, prev)].into_iter().collect())),
-            PathItem::FieldName(name) => {
-                Ok(ast::Node::Fields([(name, prev)].into_iter().collect()))
+            PathItem::FieldName(name) => Ok(ast::Node::Fields(
+                [(name.to_string(), prev)].into_iter().collect(),
+            )),
+            PathItem::EnumVariant(variant) => {
+                Ok(ast::Node::NewTypeEnumVariant(variant.to_string(), prev))
             }
-            PathItem::EnumVariant(variant) => Ok(ast::Node::NewTypeEnumVariant(variant, prev)),
         }
         .map(Into::into)
     }
@@ -82,7 +80,7 @@ pub fn parse(input: &str) -> Result<ast::NodeCell> {
 }
 
 #[allow(clippy::result_large_err)]
-fn parse_rule<'i>(rule: Rule, input: &'i str, ast: Ast<'i>) -> ParseResult<Node<'i>> {
+fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
     Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
         .and_then(|p| p.single())
@@ -507,7 +505,7 @@ mod tests {
 
     #[test]
     fn parse_rhs() {
-        ok! { rhs "`Foo`" => ast::Leaf::UnitEnumVariant("Foo") }
+        ok! { rhs "`Foo`" => ast::Leaf::UnitEnumVariant("Foo".into()) }
 
         ok! {
             rhs "[1, 2]" =>

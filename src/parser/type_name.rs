@@ -16,7 +16,7 @@ impl TypeName for PathItem<'_> {
     }
 }
 
-impl TypeName for ast::Node<'_> {
+impl TypeName for ast::Node {
     fn type_name(&self) -> Cow<'static, str> {
         match self {
             ast::Node::Fields(_) => "structure".into(),
@@ -28,7 +28,7 @@ impl TypeName for ast::Node<'_> {
     }
 }
 
-impl TypeName for ast::Leaf<'_> {
+impl TypeName for ast::Leaf {
     fn type_name(&self) -> Cow<'static, str> {
         match self {
             ast::Leaf::InlineSequence(_) => "inline sequence".into(),

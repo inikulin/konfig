@@ -3,7 +3,7 @@ use super::type_name::TypeName;
 use super::{ast, error, Parser, PathItem, Span};
 
 pub(super) struct InsertionPoint<'i> {
-    host_node: ast::NodeCell<'i>,
+    host_node: ast::NodeCell,
     path_item: PathItem<'i>,
     span: Span<'i>,
 }
@@ -14,7 +14,7 @@ impl<'i> InsertionPoint<'i> {
         path: &mut impl Iterator<Item = Node<'i>>,
         rhs: &ast::NodeCell,
         assignment_span: Span,
-        ast: ast::NodeCell<'i>,
+        ast: ast::NodeCell,
     ) -> ParseResult<InsertionPoint<'i>> {
         let mut host_node = ast;
 
@@ -53,7 +53,7 @@ impl<'i> InsertionPoint<'i> {
     }
 
     #[allow(clippy::result_large_err)]
-    pub(super) fn insert(self, new_node: ast::NodeCell<'i>) -> ParseResult<()> {
+    pub(super) fn insert(self, new_node: ast::NodeCell) -> ParseResult<()> {
         match (&mut *self.host_node.borrow_mut(), self.path_item) {
             (ast::Node::Sequence(seq), PathItem::Index(idx)) => {
                 if idx != seq.len() {
@@ -69,7 +69,7 @@ impl<'i> InsertionPoint<'i> {
                 seq.push(new_node);
             }
             (ast::Node::Fields(fields), PathItem::FieldName(name)) => {
-                fields.insert(name, new_node);
+                fields.insert(name.to_string(), new_node);
             }
             (ast::Node::Map(map), PathItem::MapKey(key)) => {
                 map.insert(key, new_node);
