@@ -11,7 +11,7 @@ pub enum Value {
     Map(HashMap<String, ValueCell>),
     Struct(HashMap<String, ValueCell>),
     Variant(String, ValueCell),
-    PrimitiveSequence(Vec<Primitive>),
+    SequenceOfPrimitives(Vec<Primitive>),
     Primitive(Primitive),
 }
 
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn value_from_cell() {
-        let value = Value::PrimitiveSequence(vec![
+        let value = Value::SequenceOfPrimitives(vec![
             Primitive::PosInt(42),
             Primitive::PosInt(43),
             Primitive::PosInt(44),

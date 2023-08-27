@@ -22,10 +22,10 @@ index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 
 // RHS
 //--------------------------------------------------------------------------------------------
-rhs = { primitive_sequence | primitive }
+rhs = { sequence_of_primitives | primitive }
 
-primitive_sequence = { "[" ~ primitive_sequence_values? ~ "]" }
-primitive_sequence_values = { primitive ~ ( "," ~ primitive )* ~ ","? }
+sequence_of_primitives = { "[" ~ sequence_of_primitives_values? ~ "]" }
+sequence_of_primitives_values = { primitive ~ ( "," ~ primitive )* ~ ","? }
 
 
 // Primitives

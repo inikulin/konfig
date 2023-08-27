@@ -24,7 +24,7 @@ impl TypeName for Value {
             Value::Map(_) => "map".into(),
             Value::Variant(v, _) => format!("new type enum variant `{v}`").into(),
             Value::Sequence(_) => "sequence".into(),
-            Value::PrimitiveSequence(_) => "inline sequence".into(),
+            Value::SequenceOfPrimitives(_) => "inline sequence".into(),
             Value::Primitive(v) => v.type_name(),
         }
     }

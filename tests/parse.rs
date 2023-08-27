@@ -41,7 +41,7 @@ fn simple_assignment() {
             "foo_bar" => Value::Sequence(vec![
                 Value::Variant("Baz".into(),
                     Value::Map(map!(
-                        "qux quz" => Value::PrimitiveSequence(vec![
+                        "qux quz" => Value::SequenceOfPrimitives(vec![
                                 Primitive::PosInt(1),
                                 Primitive::PosInt(2),
                                 Primitive::PosInt(3),

@@ -144,7 +144,7 @@ impl Parser {
         char::try_from(code_point).into_parse_result(node.as_span())
     }
 
-    pub(super) fn primitive_sequence(node: Node) -> ParseResult<Vec<Primitive>> {
+    pub(super) fn sequence_of_primitives(node: Node) -> ParseResult<Vec<Primitive>> {
         let mut seq = Vec::new();
 
         if let Ok(values) = node.children().single() {
@@ -160,7 +160,7 @@ impl Parser {
         Ok(match_nodes! {
             node.children();
             [primitive(v)] => Value::Primitive(v),
-            [primitive_sequence(s)] => Value::PrimitiveSequence(s),
+            [sequence_of_primitives(s)] => Value::SequenceOfPrimitives(s),
         })
     }
 

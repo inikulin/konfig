@@ -87,7 +87,7 @@ fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::esc => "escape sequence",
             Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or a new line",
             Rule::esc_unicode => "unicode character escape sequence",
-            Rule::primitive_sequence | Rule::primitive_sequence_values => "sequence of primitive values",
+            Rule::sequence_of_primitives | Rule::sequence_of_primitives_values => "sequence of primitive values",
             Rule::rhs => "assignment right hand side",
             Rule::index | Rule::index_digits => "sequence index",
             Rule::field_name => "field name",
@@ -411,17 +411,17 @@ mod tests {
     }
 
     #[test]
-    fn parse_primitive_sequence() {
-        ok! { primitive_sequence "[ ]" => vec![] }
-        ok! { primitive_sequence "[ \n ]" => vec![] }
+    fn parse_sequence_of_primitives() {
+        ok! { sequence_of_primitives "[ ]" => vec![] }
+        ok! { sequence_of_primitives "[ \n ]" => vec![] }
 
         ok! {
-            primitive_sequence "[ 41 ,  \n 42, 43, ]" =>
+            sequence_of_primitives "[ 41 ,  \n 42, 43, ]" =>
             vec![Primitive::PosInt(41), Primitive::PosInt(42), Primitive::PosInt(43)]
         }
 
         ok! {
-            primitive_sequence "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
+            sequence_of_primitives "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
             vec![
                 Primitive::Null,
                 Primitive::Bool(true),
@@ -433,7 +433,7 @@ mod tests {
             ]
         }
 
-        err! { primitive_sequence "[ , ]" =>
+        err! { sequence_of_primitives "[ , ]" =>
             " --> 1:3
             |
           1 | [ , ]
@@ -442,7 +442,7 @@ mod tests {
             = expected primitive value"
         }
 
-        err! { primitive_sequence "[ true, nottrue ]" =>
+        err! { sequence_of_primitives "[ true, nottrue ]" =>
             " --> 1:9
             |
           1 | [ true, nottrue ]
@@ -491,7 +491,7 @@ mod tests {
 
         ok! {
             rhs "[1, 2]" =>
-            Value::PrimitiveSequence(vec![Primitive::PosInt(1), Primitive::PosInt(2)])
+            Value::SequenceOfPrimitives(vec![Primitive::PosInt(1), Primitive::PosInt(2)])
         }
 
         ok! { rhs "null" => Value::Primitive(Primitive::Null) }
