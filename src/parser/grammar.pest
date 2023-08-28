@@ -27,7 +27,7 @@ sequence_of_primitives_values = { primitive ~ ( "," ~ primitive )* ~ ","? }
 
 // Primitives
 //--------------------------------------------------------------------------------------------
-primitive = { 
+primitive = {
     null | boolean | float | neg_int | pos_int | single_quoted_string | double_quoted_string |
     raw_string | enum_variant
 }

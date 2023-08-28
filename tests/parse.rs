@@ -67,6 +67,15 @@ macro_rules! ok {
     }};
 }
 
+macro_rules! err {
+    ($input:expr => $expected:expr) => {
+        assert_eq!(
+            parse($input).unwrap_err().to_string(),
+            indoc::indoc!($expected)
+        );
+    };
+}
+
 #[test]
 fn simple_assignment() {
     ok! {
@@ -111,4 +120,9 @@ fn simple_assignment() {
             ">": Primitive(UnitVariant("Hello"))
         })
     }
+}
+
+#[test]
+fn separator() {
+    err! { "> > foo_bar = 123" => "" }
 }
