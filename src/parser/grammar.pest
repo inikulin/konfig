@@ -4,7 +4,11 @@ docs = @{ !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
 expr = { path ~ INDENTATION ~ "=" ~ SPACE* ~ rhs ~ expr_terminator }
 
 // NOTE: at least new lines are required to break quotation in markdown
-expr_terminator = @{ SPACE* ~ ( ( NEWLINE ~ NEWLINE+ ) | ( NEWLINE* ~ SPACE* ~ EOI) ) }
+expr_terminator = @{ 
+    ( SPACE* ~ NEWLINE ){2} | 
+    ( ( SPACE | NEWLINE )* ~ EOI )
+}
+
 docs_terminator = @{ NEWLINE | EOI }
 
 // Path

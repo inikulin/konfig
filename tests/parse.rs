@@ -13,7 +13,6 @@ pub enum AstValue {
     Map(HashMap<String, AstValue>),
     Struct(HashMap<String, AstValue>),
     Variant(String, Box<AstValue>),
-    SequenceOfPrimitives(Vec<AstPrimitive>),
     Primitive(AstPrimitive),
 }
 
@@ -26,9 +25,6 @@ impl From<ValueCell> for AstValue {
                 AstValue::Struct(s.into_iter().map(|(k, v)| (k, v.into())).collect())
             }
             Value::Variant(name, val) => AstValue::Variant(name, Box::new(val.into())),
-            Value::SequenceOfPrimitives(s) => {
-                AstValue::SequenceOfPrimitives(s.into_iter().map(Into::into).collect())
-            }
             Value::Primitive(p) => AstValue::Primitive(p.into()),
         }
     }
@@ -85,14 +81,6 @@ macro_rules! err {
     };
 }
 
-// TODO remove
-#[allow(unused_macros)]
-macro_rules! print_err {
-    ($input:expr) => {
-        println!("{}", parse($input).unwrap_err().to_string());
-    };
-}
-
 #[test]
 fn simple_assignment() {
     ok! {
@@ -102,7 +90,11 @@ fn simple_assignment() {
                 Variant(
                     "Baz",
                     Map({
-                        "qux quz" : SequenceOfPrimitives([PosInt(1), PosInt(2), PosInt(3)])
+                        "qux quz" : Sequence([
+                            Primitive(PosInt(1)),
+                            Primitive(PosInt(2)),
+                            Primitive(PosInt(3))
+                        ])
                     })
                 )
             ])
@@ -227,7 +219,7 @@ fn assignment_spacing() {
         })
     }
 
-    ok! { 
+    ok! {
         "> foo  \n =  42" =>
         Struct({
             "foo": Primitive(PosInt(42))
@@ -361,32 +353,32 @@ fn assignment_spacing() {
 fn sequence_of_primitives_spacing() {
     ok! {
         "> = [ \n  1.3e+10,  'foo',true \n  , 42  \n, \n ]" =>
-        SequenceOfPrimitives([
-            Float(1.3e+10),
-            String("foo"),
-            Bool(true),
-            PosInt(42),
+        Sequence([
+            Primitive(Float(1.3e+10)),
+            Primitive(String("foo")),
+            Primitive(Bool(true)),
+            Primitive(PosInt(42)),
         ])
     }
 
     ok! {
         "> = [ 1\n  ]" =>
-        SequenceOfPrimitives([
-            PosInt(1),
+        Sequence([
+            Primitive(PosInt(1)),
         ])
     }
 
     ok! {
         "> = [\n1]" =>
-        SequenceOfPrimitives([
-            PosInt(1),
+        Sequence([
+            Primitive(PosInt(1)),
         ])
     }
 
     ok! {
         "> = [1,\n]" =>
-        SequenceOfPrimitives([
-            PosInt(1),
+        Sequence([
+            Primitive(PosInt(1)),
         ])
     }
 
@@ -524,12 +516,12 @@ fn parse_rhs() {
 
         "#} => Struct({
             "enum_variant": Primitive(UnitVariant("Foo")),
-            "seq_of_primitives": SequenceOfPrimitives([
-                String("foo"),
-                String("bar"),
-                PosInt(1),
-                Float(2.3e1),
-                Null
+            "seq_of_primitives": Sequence([
+                Primitive(String("foo")),
+                Primitive(String("bar")),
+                Primitive(PosInt(1)),
+                Primitive(Float(2.3e1)),
+                Primitive(Null)
             ]),
             "null": Primitive(Null),
             "bool": Struct({
@@ -554,5 +546,131 @@ fn parse_rhs() {
                 "single": Primitive(String(" foo bar "))
             })
         })
+    }
+}
+
+#[test]
+fn sequence_overwrite() {
+    err! {
+        indoc! {"
+            > foo = [1, 2, 3]
+
+            > foo > [0] = 3
+        "} => 
+        " --> 3:9
+        |
+      3 | > foo > [0] = 3
+        |         ^-^
+        |
+        = path item is expected to be sequence, but it was previously defined as inline sequence of primitive values"
+    }
+
+    err! {
+        indoc! {"
+            > foo > [0] = 3
+
+            > foo = [1, 2, 3]
+        "} => 
+        " --> 3:1
+        |
+      3 | > foo = [1, 2, 3]␊
+        | ^----------------^
+        |
+        = attempt to assign inline sequence of primitive values to a path item that was previously defined as sequence"
+    }
+}
+
+#[test]
+fn doc_and_expr_spacing() {
+    ok! {
+        indoc! {"
+            Hello world!
+
+            > foo = 3      
+            
+            * Hey!
+            > bar = 4
+
+            Lorem ipsum
+            123
+        "} => 
+        Struct({
+            "foo": Primitive(PosInt(3)),
+            "bar": Primitive(PosInt(4))
+        })
+    }
+
+    ok! {
+        indoc! {"
+            Hello world!
+            > foo = 
+            ```rust
+            foo
+            bar
+
+            baz
+            ```
+
+            * Hey!
+            
+            Lorem ipsum
+            123
+        "} => 
+        Struct({
+            "foo": Primitive(String("foo\nbar\n\nbaz")),
+        })
+    }
+
+    err! {
+        indoc! {"
+            Hello world!
+            
+            > foo = 3
+            * Hey!
+            > bar = 4
+
+            Lorem ipsum
+            123
+        "} => 
+        " --> 3:10
+        |
+      3 | > foo = 3␊
+        |          ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        indoc! {"
+            Hello world!
+            > foo = 
+            ```rust
+            foo
+            bar
+
+            baz
+            ```
+            * Hey!
+        "} => 
+        " --> 8:4
+        |
+      8 | ```␊
+        |    ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        indoc! {"
+            Hello world!
+                     > *Hi there
+            > foo = 42
+        "} => 
+        " --> 2:12
+        |
+      2 |          > *Hi there
+        |            ^---
+        |
+        = expected path item"
     }
 }

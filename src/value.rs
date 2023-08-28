@@ -1,3 +1,4 @@
+use crate::parser::ParsingMeta;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::mem;
@@ -11,7 +12,6 @@ pub enum Value {
     Map(HashMap<String, ValueCell>),
     Struct(HashMap<String, ValueCell>),
     Variant(String, ValueCell),
-    SequenceOfPrimitives(Vec<Primitive>),
     Primitive(Primitive),
 }
 
@@ -25,9 +25,6 @@ pub enum Primitive {
     String(String),
     UnitVariant(String),
 }
-
-#[derive(Debug, PartialEq)]
-pub struct ValueCell(Rc<RefCell<Value>>);
 
 impl Value {
     pub(crate) fn is_multitenant(&self) -> bool {
@@ -46,9 +43,18 @@ impl From<ValueCell> for Value {
 
         mem::forget(cell.0);
 
-        ref_cell.into_inner()
+        ref_cell.into_inner().value
     }
 }
+
+#[derive(Debug)]
+pub(super) struct ValueCellInternal {
+    pub(super) value: Value,
+    pub(super) parsing_meta: ParsingMeta,
+}
+
+#[derive(Debug)]
+pub struct ValueCell(Rc<RefCell<ValueCellInternal>>);
 
 impl ValueCell {
     #[inline]
@@ -57,12 +63,12 @@ impl ValueCell {
     }
 
     #[inline]
-    pub(super) fn borrow(&self) -> Ref<Value> {
+    pub(super) fn borrow(&self) -> Ref<ValueCellInternal> {
         self.0.borrow()
     }
 
     #[inline]
-    pub(super) fn borrow_mut(&self) -> RefMut<Value> {
+    pub(super) fn borrow_mut(&self) -> RefMut<ValueCellInternal> {
         self.0.borrow_mut()
     }
 
@@ -82,7 +88,7 @@ impl Deref for ValueCell {
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
         // parsing is complete.
-        unsafe { &*self.0.as_ptr() }
+        &unsafe { &*self.0.as_ptr() }.value
     }
 }
 
@@ -94,7 +100,19 @@ impl DerefMut for ValueCell {
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
         // parsing is complete.
-        unsafe { &mut *self.0.as_ptr() }
+        &mut unsafe { &mut *self.0.as_ptr() }.value
+    }
+}
+
+impl PartialEq<ValueCell> for ValueCell {
+    fn eq(&self, other: &ValueCell) -> bool {
+        **self == **other
+    }
+}
+
+impl PartialEq<Value> for ValueCell {
+    fn eq(&self, other: &Value) -> bool {
+        **self == *other
     }
 }
 
@@ -105,9 +123,18 @@ impl Clone for ValueCell {
     }
 }
 
+impl From<(Value, ParsingMeta)> for ValueCell {
+    fn from((value, parsing_meta): (Value, ParsingMeta)) -> Self {
+        Self(Rc::new(RefCell::new(ValueCellInternal {
+            value,
+            parsing_meta,
+        })))
+    }
+}
+
 impl From<Value> for ValueCell {
     fn from(value: Value) -> Self {
-        Self(Rc::new(RefCell::new(value)))
+        (value, Default::default()).into()
     }
 }
 
@@ -151,10 +178,10 @@ mod tests {
 
     #[test]
     fn value_from_cell() {
-        let value = Value::SequenceOfPrimitives(vec![
-            Primitive::PosInt(42),
-            Primitive::PosInt(43),
-            Primitive::PosInt(44),
+        let value = Value::Sequence(vec![
+            Value::Primitive(Primitive::PosInt(42)).into(),
+            Value::Primitive(Primitive::PosInt(43)).into(),
+            Value::Primitive(Primitive::PosInt(44)).into(),
         ]);
 
         let cell = ValueCell::from(value.clone());

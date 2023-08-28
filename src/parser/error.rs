@@ -1,6 +1,6 @@
 use super::imp::Rule;
 use super::path_item::PathItem;
-use crate::value::{Primitive, Value};
+use crate::value::{Primitive, Value, ValueCell};
 use pest::Span;
 use pest_consume::Error as PestError;
 use std::borrow::Cow;
@@ -62,14 +62,18 @@ impl TypeName for PathItem<'_> {
     }
 }
 
-impl TypeName for Value {
+impl TypeName for ValueCell {
     fn type_name(&self) -> Cow<'static, str> {
-        match self {
+        let cell = self.borrow();
+
+        match &cell.value {
             Value::Struct(_) => "structure".into(),
             Value::Map(_) => "map".into(),
             Value::Variant(v, _) => format!("new type enum variant `{v}`").into(),
+            Value::Sequence(_) if cell.parsing_meta.is_inline_seq => {
+                "inline sequence of primitive values".into()
+            }
             Value::Sequence(_) => "sequence".into(),
-            Value::SequenceOfPrimitives(_) => "inline sequence".into(),
             Value::Primitive(v) => v.type_name(),
         }
     }

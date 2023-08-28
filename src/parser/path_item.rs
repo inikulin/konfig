@@ -28,9 +28,13 @@ impl<'i> PathItem<'i> {
         .map(Into::into)
     }
 
-    pub(super) fn index_value(&self, value: &Value) -> Result<Option<ValueCell>, String> {
-        match (self, value) {
-            (PathItem::Index(idx), Value::Sequence(seq)) => {
+    pub(super) fn index_value(&self, value_cell: &ValueCell) -> Result<Option<ValueCell>, String> {
+        let value_cell_ref = value_cell.borrow();
+
+        match (self, &value_cell_ref.value) {
+            (PathItem::Index(idx), Value::Sequence(seq))
+                if !value_cell_ref.parsing_meta.is_inline_seq =>
+            {
                 Ok(seq.get(*idx).map(ValueCell::rc_clone))
             }
             (PathItem::MapKey(key), Value::Map(map)) => Ok(map.get(key).map(ValueCell::rc_clone)),
@@ -43,7 +47,7 @@ impl<'i> PathItem<'i> {
             _ => Err(format!(
                 "path item is expected to be {}, but it was previously defined as {}",
                 self.type_name(),
-                value.type_name()
+                value_cell.type_name()
             )),
         }
     }

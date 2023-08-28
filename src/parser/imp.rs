@@ -1,8 +1,8 @@
 use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::insertion_point::InsertionPoint;
 use super::path_item::PathItem;
-use super::Ast;
-use crate::value::{Primitive, Value};
+use super::{Ast, ParsingMeta};
+use crate::value::{Primitive, Value, ValueCell};
 use pest_consume::{match_nodes, Parser as PestParser};
 
 pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
@@ -26,8 +26,8 @@ impl Parser {
         Ok(())
     }
 
-    pub(super) fn primitive(node: Node) -> ParseResult<Primitive> {
-        Ok(match_nodes! {
+    pub(super) fn primitive(node: Node) -> ParseResult<ValueCell> {
+        Ok(Value::Primitive(match_nodes! {
             node.children();
             [null(_)] => Primitive::Null,
             [boolean(v)] => Primitive::Bool(v),
@@ -39,6 +39,7 @@ impl Parser {
             [raw_string(v)] => Primitive::String(v),
             [enum_variant(v)] => Primitive::UnitVariant(v.to_string()),
         })
+        .into())
     }
 
     pub(super) fn pos_int(node: Node) -> ParseResult<u64> {
@@ -128,7 +129,7 @@ impl Parser {
         char::try_from(code_point).into_parse_result(node.as_span())
     }
 
-    pub(super) fn sequence_of_primitives(node: Node) -> ParseResult<Vec<Primitive>> {
+    pub(super) fn sequence_of_primitives(node: Node) -> ParseResult<ValueCell> {
         let mut seq = Vec::new();
 
         if let Ok(values) = node.children().single() {
@@ -137,14 +138,18 @@ impl Parser {
             }
         }
 
-        Ok(seq)
+        let meta = ParsingMeta {
+            is_inline_seq: true,
+        };
+
+        Ok((Value::Sequence(seq), meta).into())
     }
 
-    pub(super) fn rhs(node: Node) -> ParseResult<Value> {
+    pub(super) fn rhs(node: Node) -> ParseResult<ValueCell> {
         Ok(match_nodes! {
             node.children();
-            [primitive(v)] => Value::Primitive(v),
-            [sequence_of_primitives(s)] => Value::SequenceOfPrimitives(s),
+            [primitive(v)] => v,
+            [sequence_of_primitives(s)] => s,
         })
     }
 
@@ -202,15 +207,13 @@ impl Parser {
         let span = node.as_span();
         let ast = node.user_data();
 
-        let (mut path, rhs) = match_nodes! {
+        let (mut path, mut new_value) = match_nodes! {
             node.children();
             [path(p), rhs(r), expr_terminator(_)] => (
                 p.into_children().filter(|n| n.as_rule() == Rule::path_item),
                 r
             ),
         };
-
-        let mut new_value = rhs.into();
 
         let insertion_point = ast
             .borrow()

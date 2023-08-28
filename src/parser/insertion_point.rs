@@ -23,15 +23,12 @@ impl<'i> InsertionPoint<'i> {
         for node in path.by_ref() {
             let span = node.as_span();
             let path_item = Parser::path_item(node)?;
-
-            let next = path_item
-                .index_value(&host.borrow())
-                .into_parse_result(span)?;
+            let next = path_item.index_value(&host).into_parse_result(span)?;
 
             match next {
                 Some(next) => host = next,
                 None => {
-                    return if host.borrow().is_multitenant() {
+                    return if host.borrow().value.is_multitenant() {
                         Ok(InsertionPoint {
                             host,
                             path_item,
@@ -41,8 +38,8 @@ impl<'i> InsertionPoint<'i> {
                         Err(parse_error!(
                             assignment_span,
                             "attempt to assign {} to the path that was assigned {} previously",
-                            rhs.borrow().type_name(),
-                            host.borrow().type_name()
+                            rhs.type_name(),
+                            host.type_name()
                         ))
                     }
                 }
@@ -52,14 +49,14 @@ impl<'i> InsertionPoint<'i> {
         Err(parse_error!(
             assignment_span,
             "attempt to assign {} to a path item that was previously defined as {}",
-            rhs.borrow().type_name(),
-            host.borrow().type_name()
+            rhs.type_name(),
+            host.type_name()
         ))
     }
 
     #[allow(clippy::result_large_err)]
     pub(super) fn insert(self, new_value: ValueCell) -> ParseResult<()> {
-        match (&mut *self.host.borrow_mut(), self.path_item) {
+        match (&mut self.host.borrow_mut().value, self.path_item) {
             (Value::Sequence(seq), PathItem::Index(idx)) => {
                 if idx != seq.len() {
                     return Err(parse_error!(

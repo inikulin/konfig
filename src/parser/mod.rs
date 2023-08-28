@@ -14,6 +14,11 @@ use std::rc::Rc;
 
 type Ast = Rc<RefCell<Option<ValueCell>>>;
 
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
+pub(crate) struct ParsingMeta {
+    is_inline_seq: bool,
+}
+
 pub fn parse(input: &str) -> Result<ValueCell> {
     let ast = Rc::new(RefCell::new(None));
 
@@ -413,25 +418,29 @@ mod tests {
 
     #[test]
     fn parse_sequence_of_primitives() {
-        ok! { sequence_of_primitives "[ ]" => vec![] }
-        ok! { sequence_of_primitives "[ \n ]" => vec![] }
+        ok! { sequence_of_primitives "[ ]" => Value::Sequence(vec![]) }
+        ok! { sequence_of_primitives "[ \n ]" => Value::Sequence(vec![]) }
 
         ok! {
             sequence_of_primitives "[ 41 ,  \n 42, 43, ]" =>
-            vec![Primitive::PosInt(41), Primitive::PosInt(42), Primitive::PosInt(43)]
+            Value::Sequence(vec![
+                Value::Primitive(Primitive::PosInt(41)).into(),
+                Value::Primitive(Primitive::PosInt(42)).into(),
+                Value::Primitive(Primitive::PosInt(43)).into()
+            ])
         }
 
         ok! {
             sequence_of_primitives "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
-            vec![
-                Primitive::Null,
-                Primitive::Bool(true),
-                Primitive::PosInt(42),
-                Primitive::NegInt(-42),
-                Primitive::Float(42.42),
-                Primitive::String("foo bar".into()),
-                Primitive::String("baz qux".into())
-            ]
+            Value::Sequence(vec![
+                Value::Primitive(Primitive::Null).into(),
+                Value::Primitive(Primitive::Bool(true)).into(),
+                Value::Primitive(Primitive::PosInt(42)).into(),
+                Value::Primitive(Primitive::NegInt(-42)).into(),
+                Value::Primitive(Primitive::Float(42.42)).into(),
+                Value::Primitive(Primitive::String("foo bar".into())).into(),
+                Value::Primitive(Primitive::String("baz qux".into())).into()
+            ])
         }
 
         err! { sequence_of_primitives "[ , ]" =>
@@ -492,7 +501,10 @@ mod tests {
 
         ok! {
             rhs "[1, 2]" =>
-            Value::SequenceOfPrimitives(vec![Primitive::PosInt(1), Primitive::PosInt(2)])
+            Value::Sequence(vec![
+                Value::Primitive(Primitive::PosInt(1)).into(),
+                Value::Primitive(Primitive::PosInt(2)).into()
+            ])
         }
 
         ok! { rhs "null" => Value::Primitive(Primitive::Null) }
