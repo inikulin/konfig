@@ -72,15 +72,13 @@ fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::map_key | Rule::map_key_literal => "map key",
             Rule::path_item => "path item",
             Rule::value_assignment => "value assignment",
-            Rule::path_start => "`>` followed by optional whitespace",
             Rule::path => "value path",
-            Rule::path_sep => "`>` surrounded by optional whitespace or two consequtive `>`s separated by a new line",
-            Rule::line_wrap_path_sep => "two consequtive `>`s separated by a new line",
             Rule::raw_string_lang_ident
             | Rule::raw_string_start => "raw string start: ``` followed by an optional language identifier, followed by a mandatory new line",
             Rule::raw_string_end => "raw string end: a new line followed by ```",
             Rule::raw_string_text => "raw string text",
             Rule::raw_string => "raw string",
+            Rule::COMMENT => "comment",
             Rule::SPACE => "` ` or `\\t`",
             Rule::WHITESPACE => "whitespace",
         }.into()

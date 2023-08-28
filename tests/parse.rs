@@ -95,7 +95,7 @@ fn simple_assignment() {
     }
 
     ok! {
-        "> `Hello` >    \n> `World` = true" =>
+        "> `Hello` >    \n \n `World` = true" =>
         Variant(
             "Hello",
             Variant(
