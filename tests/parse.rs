@@ -227,14 +227,21 @@ fn assignment_spacing() {
         })
     }
 
+    ok! { 
+        "> foo  \n =  42" =>
+        Struct({
+            "foo": Primitive(PosInt(42))
+        })
+    }
+
     err! {
         "   > foo   \n   =   \n   42" =>
-        " --> 1:4
+        " --> 2:8
         |
-      1 |    > foo   
-        |    ^---
+      2 |    =   ␊
+        |        ^---
         |
-        = expected end of input, documentation, or expression"
+        = expected assignment right hand side"
     }
 
     err! {
