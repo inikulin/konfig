@@ -97,7 +97,7 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::hex_digits => "hexadecimal digits",
             Rule::dec_digits => "digits",
             Rule::null => "`null`",
-            Rule::boolean | Rule::boolean_true | Rule::boolean_false => "boolean value",
+            Rule::boolean => "boolean value",
             Rule::primitive => "primitive value",
             Rule::float => "floating point number",
             Rule::exponent => "exponent",

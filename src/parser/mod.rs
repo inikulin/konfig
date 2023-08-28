@@ -30,14 +30,14 @@ pub fn parse(input: &str) -> Result<ValueCell> {
 
 #[allow(clippy::result_large_err)]
 fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test_assertions"))]
     crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(true));
 
     let res = Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
         .and_then(|p| p.single());
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test_assertions"))]
     crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
 
     res
@@ -585,7 +585,7 @@ mod tests {
     }
 
     #[test]
-    fn path_item() {
+    fn parse_path_item() {
         ok! { path_item "foo_bar" => PathItem::FieldName("foo_bar") }
         ok! { path_item "`FooBar`" => PathItem::EnumVariant("FooBar") }
         ok! { path_item "[42]" => PathItem::Index(42) }

@@ -37,7 +37,7 @@ impl Value {
 
 impl From<ValueCell> for Value {
     fn from(cell: ValueCell) -> Self {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test_assertions"))]
         value_cell_safety_checks::assert_not_parsing();
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
@@ -77,7 +77,7 @@ impl Deref for ValueCell {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test_assertions"))]
         value_cell_safety_checks::assert_not_parsing();
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
@@ -89,7 +89,7 @@ impl Deref for ValueCell {
 impl DerefMut for ValueCell {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test_assertions"))]
         value_cell_safety_checks::assert_not_parsing();
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
@@ -119,7 +119,7 @@ impl From<Value> for ValueCell {
 unsafe impl Send for ValueCell {}
 unsafe impl Sync for ValueCell {}
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test_assertions"))]
 pub(super) mod value_cell_safety_checks {
     use super::*;
     use std::cell::Cell;

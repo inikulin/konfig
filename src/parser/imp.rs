@@ -14,9 +14,9 @@ pub(super) struct Parser;
 #[pest_consume::parser]
 impl Parser {
     pub(super) fn boolean(node: Node) -> ParseResult<bool> {
-        Ok(match node.children().single().unwrap().as_rule() {
-            Rule::boolean_true => true,
-            Rule::boolean_false => false,
+        Ok(match node.as_str() {
+            "true" => true,
+            "false" => false,
             _ => unreachable!(),
         })
     }

@@ -75,7 +75,13 @@ macro_rules! ok {
 
 macro_rules! err {
     ($input:expr => $expected:expr) => {
-        assert_eq!(parse($input).unwrap_err().to_string(), indoc!($expected));
+        let actual = parse($input).unwrap_err().to_string();
+        let expected = indoc!($expected);
+
+        assert_eq!(
+            actual, expected,
+            "expected:\n\n{expected}\n\nbut got:\n\n{actual}"
+        );
     };
 }
 
@@ -172,13 +178,6 @@ fn assignment_spacing() {
     }
 
     ok! {
-        "   > foo   \n   =   \n   42" =>
-        Struct({
-            "foo": Primitive(PosInt(42))
-        })
-    }
-
-    ok! {
         "
             > foo = 42
 
@@ -226,6 +225,16 @@ fn assignment_spacing() {
             "foo": Primitive(PosInt(42)),
             "bar": Primitive(PosInt(43))
         })
+    }
+
+    err! {
+        "   > foo   \n   =   \n   42" =>
+        " --> 1:4
+        |
+      1 |    > foo   
+        |    ^---
+        |
+        = expected end of input, documentation, or expression"
     }
 
     err! {
@@ -323,10 +332,10 @@ fn assignment_spacing() {
 
     err! {
         "> foo = \n \n 42" =>
-        " --> 2:2
+        " --> 1:9
         |
-      2 |  ␊
-        |  ^---
+      1 | > foo = ␊
+        |         ^---
         |
         = expected assignment right hand side"
     }
@@ -402,5 +411,141 @@ fn sequence_of_primitives_spacing() {
         | ^---
         |
         = expected primitive value"
+    }
+}
+
+#[test]
+fn numbers_spacing() {
+    err! {
+        "> = - 3" =>
+        " --> 1:6
+        |
+      1 | > = - 3
+        |      ^---
+        |
+        = expected digits"
+    }
+
+    err! {
+        "> = 3. 45" =>
+        " --> 1:7
+        |
+      1 | > = 3. 45
+        |       ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        "> = 3.45 e+10" =>
+        " --> 1:9
+        |
+      1 | > = 3.45 e+10
+        |         ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        "> = 3.45e +10" =>
+        " --> 1:9
+        |
+      1 | > = 3.45e +10
+        |         ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        "> = 3.45e+ 10" =>
+        " --> 1:9
+        |
+      1 | > = 3.45e+ 10
+        |         ^---
+        |
+        = expected double new line or end of input"
+    }
+}
+
+#[test]
+fn parse_path_item() {
+    ok! { "> foo_bar = null" => Struct({ "foo_bar": Primitive(Null) }) }
+    ok! { "> `FooBar` = null" => Variant("FooBar", Primitive(Null)) }
+    ok! { "> [0] = null" => Sequence([Primitive(Null)]) }
+    ok! { "> [\"foobar\"] = null" => Map({ "foobar": Primitive(Null) }) }
+    ok! { "> ['foobar'] = null" => Map({ "foobar": Primitive(Null) }) }
+}
+
+#[test]
+fn parse_rhs() {
+    ok! {
+        indoc! {r#"
+            > enum_variant = `Foo`
+
+            > seq_of_primitives = [
+                "foo", 'bar',
+                1, 2.3e1,
+                null
+            ]
+
+            > null = null
+
+            > bool > true = true
+
+            > bool > false = false
+
+            > pos_int > dec = 42
+            
+            > pos_int > hex > hi = 0x2A
+
+            > pos_int > hex > lo = 0x2a
+
+            > float > [0] = 42.
+
+            > float > [1] = 42.42
+
+            > float > [2] = 1.956e-10
+
+            > string > raw =
+            ```test
+             foo bar 
+            ```
+
+            > string > double = " foo bar "
+
+            > string > single = ' foo bar '
+
+        "#} => Struct({
+            "enum_variant": Primitive(UnitVariant("Foo")),
+            "seq_of_primitives": SequenceOfPrimitives([
+                String("foo"),
+                String("bar"),
+                PosInt(1),
+                Float(2.3e1),
+                Null
+            ]),
+            "null": Primitive(Null),
+            "bool": Struct({
+                "true": Primitive(Bool(true)),
+                "false": Primitive(Bool(false))
+            }),
+            "pos_int": Struct({
+                "dec": Primitive(PosInt(42)),
+                "hex": Struct({
+                    "hi": Primitive(PosInt(42)),
+                    "lo": Primitive(PosInt(42))
+                })
+            }),
+            "float": Sequence([
+                Primitive(Float(42.0)),
+                Primitive(Float(42.42)),
+                Primitive(Float(1.956e-10)),
+            ]),
+            "string": Struct({
+                "raw": Primitive(String(" foo bar ")),
+                "double": Primitive(String(" foo bar ")),
+                "single": Primitive(String(" foo bar "))
+            })
+        })
     }
 }

@@ -1,7 +1,7 @@
 konfig = { SOI ~ ( docs | expr+ | NEWLINE | SPACE )* ~ EOI }
 
 docs = @{ !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
-expr = { path ~ INDENTATION ~ "=" ~ INDENTATION ~ rhs ~ expr_terminator }
+expr = { path ~ SPACE* ~ "=" ~ SPACE* ~ rhs ~ expr_terminator }
 
 // NOTE: at least new lines are required to break quotation in markdown
 expr_terminator = @{ SPACE* ~ ( ( NEWLINE ~ NEWLINE+ ) | ( NEWLINE* ~ SPACE* ~ EOI) ) }
@@ -50,9 +50,7 @@ primitive = {
 
 null = { "null" }
 
-boolean = { boolean_true | boolean_false }
-boolean_true = { "true" }
-boolean_false = { "false" }
+boolean = { "true" | "false" }
 
 pos_int = { ( "0x" ~ hex_digits ) | dec_digits }
 hex_digits = { ASCII_HEX_DIGIT+ }
@@ -81,6 +79,9 @@ esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
 esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" }
 esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
 
+
+// Spacing
+//--------------------------------------------------------------------------------------------
 SPACE = _{ " " | "\t" }
 
 // NOTE: only single newline is allowed, double new line breaks quotation in markdown
