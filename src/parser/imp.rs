@@ -189,12 +189,26 @@ impl Parser {
         Ok(node)
     }
 
-    pub(super) fn value_assignment(node: Node) -> ParseResult<()> {
+    #[inline]
+    fn EOI(_node: Node) -> ParseResult<()> {
+        Ok(())
+    }
+
+    #[inline]
+    fn expr_terminator(_node: Node) -> ParseResult<()> {
+        Ok(())
+    }
+
+    pub(super) fn expr(node: Node) -> ParseResult<()> {
         let span = node.as_span();
+
+        for node in node.children() {
+            println!("{:#?}", node.as_rule());
+        }
 
         let (mut path, rhs) = match_nodes! {
             node.children();
-            [path(p), rhs(r)] => (
+            [path(p), rhs(r), expr_terminator(_)] => (
                 p.into_children().filter(|n| n.as_rule() == Rule::path_item),
                 r
             ),

@@ -17,8 +17,8 @@ type Ast = Rc<RefCell<Option<ValueCell>>>;
 pub fn parse(input: &str) -> Result<ValueCell> {
     let ast = Rc::new(RefCell::new(None));
 
-    parse_rule(Rule::value_assignment, input, Rc::clone(&ast))
-        .and_then(Parser::value_assignment)
+    parse_rule(Rule::expr, input, Rc::clone(&ast))
+        .and_then(Parser::expr)
         .map_err(Box::new)
         .map_err(ParseError)
         .map_err(Error::Parsing)?;
@@ -58,7 +58,12 @@ mod tests {
 
     macro_rules! ok {
         ($rule:ident $input:expr => $expected:expr) => {
-            assert_eq!(parse!($rule $input), Ok($expected));
+            let parsed = match parse!($rule $input) {
+                Ok(parsed) => parsed,
+                Err(err) => panic!("\n{}", err)
+            };
+
+            assert_eq!(parsed, $expected);
         };
     }
 
@@ -258,10 +263,10 @@ mod tests {
         }
 
         err! { raw_string "``` foo" =>
-            " --> 1:4
+            " --> 1:1
             |
           1 | ``` foo
-            |    ^---
+            | ^---
             |
             = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
         }

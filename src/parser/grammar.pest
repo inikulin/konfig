@@ -1,8 +1,19 @@
-value_assignment = { path ~ "=" ~ rhs }
+konfig = { SOI ~ ( docs | expr+ | NEWLINE | SPACE )* ~ EOI }
+
+docs = @{ !">" ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
+expr = { path ~ INDENTATION ~ "=" ~ INDENTATION ~ rhs ~ expr_terminator }
+
+// NOTE: at least new lines are required to break quotation in markdown
+expr_terminator = @{ SPACE* ~ ( ( NEWLINE ~ NEWLINE+ ) | EOI ) }
+docs_terminator = @{ NEWLINE | EOI }
 
 // Path
 //--------------------------------------------------------------------------------------------
-path = { ( ">" ~ path_item )+ | ">" }
+path = { 
+    path_start ~ ( path_item ~ ( SPACE* ~ separator ~ SPACE* ~ path_item )* )?
+}
+path_start = _{ ">" ~ SPACE* }
+separator = _{ ">" ~ ( SPACE* ~ NEWLINE ~ ">" )? }
 path_item = { field_name | enum_variant | map_key | index }
 
 field_name = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" )* }
@@ -10,10 +21,10 @@ field_name = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" )* }
 enum_variant = ${ "`" ~ enum_variant_ident ~ "`" }
 enum_variant_ident = @{ field_name }
 
-map_key = { "[" ~ map_key_literal ~ "]" }
+map_key = { "[" ~ SPACE* ~ map_key_literal ~ SPACE* ~ "]" }
 map_key_literal = { single_quoted_string | double_quoted_string } 
 
-index = { "[" ~ index_digits ~ "]" }
+index = { "[" ~ SPACE* ~ index_digits ~ SPACE* ~ "]" }
 index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 
 
@@ -21,8 +32,13 @@ index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 //--------------------------------------------------------------------------------------------
 rhs = { sequence_of_primitives | primitive }
 
-sequence_of_primitives = { "[" ~ sequence_of_primitives_values? ~ "]" }
-sequence_of_primitives_values = { primitive ~ ( "," ~ primitive )* ~ ","? }
+sequence_of_primitives = { "[" ~ (sequence_of_primitives_values | INDENTATION) ~ "]" }
+
+sequence_of_primitives_values = {
+    INDENTATION ~ primitive ~ INDENTATION ~ 
+    ( "," ~ INDENTATION ~ primitive ~ INDENTATION )* ~ 
+    ("," ~ INDENTATION)? 
+}
 
 
 // Primitives
@@ -38,33 +54,34 @@ boolean = { boolean_true | boolean_false }
 boolean_true = { "true" }
 boolean_false = { "false" }
 
-pos_int = ${ ( "0x" ~ hex_digits ) | dec_digits }
+pos_int = { ( "0x" ~ hex_digits ) | dec_digits }
 hex_digits = { ASCII_HEX_DIGIT+ }
 dec_digits = { ASCII_DIGIT+ }
 
-neg_int = ${ "-" ~ pos_int }
+neg_int = { "-" ~ pos_int }
 
-float = ${ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ exponent? }
-exponent = @{ ( "e" | "E" ) ~ ( "+" | "-" )? ~ ASCII_DIGIT+ }
+float = { "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ exponent? }
+exponent = _{ ( "e" | "E" ) ~ ( "+" | "-" )? ~ ASCII_DIGIT+ }
 
-double_quoted_string = ${ "\"" ~ double_quoted_string_content ~ "\"" }
-double_quoted_string_content = ${ ( double_quoted_string_text | esc )* }
+double_quoted_string = { "\"" ~ double_quoted_string_content ~ "\"" }
+double_quoted_string_content = { ( double_quoted_string_text | esc )* }
 double_quoted_string_text = { ( !("\"" | "\\") ~ ANY )+ }
 
-single_quoted_string = ${ "'" ~ single_quoted_string_content ~ "'" }
-single_quoted_string_content = ${ ( single_quoted_string_text | esc )* }
+single_quoted_string = { "'" ~ single_quoted_string_content ~ "'" }
+single_quoted_string_content = { ( single_quoted_string_text | esc )* }
 single_quoted_string_text = { ( !("'" | "\\") ~ ANY )+ }
 
-raw_string = ${ raw_string_start ~ raw_string_text ~ raw_string_end }
-raw_string_start = ${ "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
-raw_string_end = ${ NEWLINE ~ "```" }
+raw_string = { raw_string_start ~ raw_string_text ~ raw_string_end }
+raw_string_start = { "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
+raw_string_end = { NEWLINE ~ "```" }
 raw_string_text = { ( !raw_string_end ~ ANY )+ }
-raw_string_lang_ident = ${ ( ASCII_ALPHANUMERIC | "_" )+ }
+raw_string_lang_ident = _{ ( ASCII_ALPHANUMERIC | "_" )+ }
 
 esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
 esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" | NEWLINE }
 esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
 
 SPACE = _{ " " | "\t" }
-WHITESPACE = _{ SPACE | NEWLINE }
-COMMENT = _{ ( "#" | "*" ) ~ (!NEWLINE ~ ANY)* }
+
+// NOTE: only single newline is allowed, double new line breaks quotation in markdown
+INDENTATION = _{ SPACE* ~ NEWLINE? ~ SPACE* } 

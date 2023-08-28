@@ -117,16 +117,22 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::enum_variant | Rule::enum_variant_ident => "enum variant",
             Rule::map_key | Rule::map_key_literal => "map key",
             Rule::path_item => "path item",
-            Rule::value_assignment => "value assignment",
+            Rule::expr => "expression",
             Rule::path => "value path",
             Rule::raw_string_lang_ident
             | Rule::raw_string_start => "raw string start: ``` followed by an optional language identifier, followed by a mandatory new line",
             Rule::raw_string_end => "raw string end: a new line followed by ```",
             Rule::raw_string_text => "raw string text",
             Rule::raw_string => "raw string",
-            Rule::COMMENT => "comment",
+            Rule::path_start => "`>` followed by optional spaces",
+            Rule::separator => "`>` followed by optional spaces or two consequtive `>` separated by a new line",
             Rule::SPACE => "` ` or `\\t`",
-            Rule::WHITESPACE => "whitespace",
+            Rule::INDENTATION => "optional spaces with a single optional new line",
+            Rule::EOI => "end of input",
+            Rule::konfig => "expressions",
+            Rule::docs => "documentation",
+            Rule::expr_terminator => "double new line or end of input",
+            Rule::docs_terminator => "new line or end of input"
         }.into()
     })
 }

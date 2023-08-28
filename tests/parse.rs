@@ -61,7 +61,7 @@ impl From<Primitive> for AstPrimitive {
 macro_rules! ok {
     ($input:expr => $($expected:tt)+) => {{
         let parsed = match parse($input) {
-            Ok(ast) => ast,
+            Ok(parsed) => parsed,
             Err(err) => panic!("\n{}", err)
         };
 
@@ -117,7 +117,17 @@ fn simple_assignment() {
     }
 
     ok! {
-        "> `Hello` >    \n \n `World` = true" =>
+        "> ['>'] = `Hello`" =>
+        Map({
+            ">": Primitive(UnitVariant("Hello"))
+        })
+    }
+}
+
+#[test]
+fn assignment_spacing() {
+    ok! {
+        "> `Hello` >  \n>  `World` = true" =>
         Variant(
             "Hello",
             Variant(
@@ -128,15 +138,128 @@ fn simple_assignment() {
     }
 
     ok! {
-        "> ['>'] = `Hello`" =>
-        Map({
-            ">": Primitive(UnitVariant("Hello"))
+        ">   foo   >bar> \n>baz = true" =>
+        Struct({
+            "foo": Struct({
+                "bar": Struct({
+                    "baz": Primitive(Bool(true))
+                })
+            })
         })
     }
-}
 
-#[test]
-fn separator() {
+    ok! {
+        ">foo>\n>bar>\n>baz=true" =>
+        Struct({
+            "foo": Struct({
+                "bar": Struct({
+                    "baz": Primitive(Bool(true))
+                })
+            })
+        })
+    }
+
+    ok! {
+        ">foo=42" =>
+        Struct({
+            "foo": Primitive(PosInt(42))
+        })
+    }
+
+    ok! {
+        "> foo      =      42" =>
+        Struct({
+            "foo": Primitive(PosInt(42))
+        })
+    }
+
+    ok! {
+        "> foo   \n   =   \n   42" =>
+        Struct({
+            "foo": Primitive(PosInt(42))
+        })
+    }
+
+    err! {
+        "> ['foo'\n] = 42" =>
+        " --> 1:8
+        |
+      1 | > ['foo'
+        |        ^---
+        |
+        = expected single quoted string or escape sequence"
+    }
+
+    err! {
+        "> [\n'foo'] = 42" =>
+        " --> 1:4
+        |
+      1 | > [␊
+        |    ^---
+        |
+        = expected map key or sequence index"
+    }
+
+    err! {
+        "> [0\n] = 42" =>
+        " --> 1:4
+        |
+      1 | > [0
+        |    ^---
+        |
+        = expected map key"
+    }
+
+    err! {
+        "> [\n0] = 42" =>
+        " --> 1:4
+        |
+      1 | > [␊
+        |    ^---
+        |
+        = expected map key or sequence index"
+    }
+
+    err! {
+        "> foo >\n\n> bar = 42" =>
+        " --> 1:8
+        |
+      1 | > foo >␊
+        |        ^---
+        |
+        = expected path item"
+    }
+
+    err! {
+        "> \n > foo = 42" =>
+        " --> 1:3
+        |
+      1 | > ␊
+        |   ^---
+        |
+        = expected path item"
+    }
+
+    err! {
+        "> foo \n \n = 42" =>
+        " --> 1:1
+        |
+      1 | > foo 
+        | ^---
+        |
+        = expected expression"
+    }
+
+    err! {
+        "> foo = \n \n 42" =>
+        " --> 2:2
+        |
+      2 |  ␊
+        |  ^---
+        |
+        = expected assignment right hand side"
+    }
+
     err! { "> > foo_bar = 123" =>
         " --> 1:3
         |
@@ -144,5 +267,69 @@ fn separator() {
         |   ^---
         |
         = expected path item"
+    }
+}
+
+#[test]
+fn sequence_of_primitives_spacing() {
+    ok! {
+        "> = [ \n  1.3e+10,  'foo',true \n  , 42  \n, \n ]" =>
+        SequenceOfPrimitives([
+            Float(1.3e+10),
+            String("foo"),
+            Bool(true),
+            PosInt(42),
+        ])
+    }
+
+    ok! {
+        "> = [ 1\n  ]" =>
+        SequenceOfPrimitives([
+            PosInt(1),
+        ])
+    }
+
+    ok! {
+        "> = [\n1]" =>
+        SequenceOfPrimitives([
+            PosInt(1),
+        ])
+    }
+
+    ok! {
+        "> = [1,\n]" =>
+        SequenceOfPrimitives([
+            PosInt(1),
+        ])
+    }
+
+    err! { 
+        "> = [\n1\n\n]" =>
+        " --> 2:1
+        |
+      2 | 1
+        | ^---
+        |
+        = expected `null`, boolean value, negative integer, or floating point number"
+    }
+
+    err! { 
+        "> = [1,\n\n]" =>
+        " --> 2:1
+        |
+      2 | ␊
+        | ^---
+        |
+        = expected primitive value"
+    }
+
+    err! {
+        "> = [1,\n,]" =>
+        " --> 2:1
+        |
+      2 | ,]
+        | ^---
+        |
+        = expected primitive value"
     }
 }
