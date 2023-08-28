@@ -1,3 +1,4 @@
+use indoc::indoc;
 use konfig::parser::parse;
 use konfig::value::{Primitive, Value, ValueCell};
 use serde::{Deserialize, Serialize};
@@ -74,10 +75,7 @@ macro_rules! ok {
 
 macro_rules! err {
     ($input:expr => $expected:expr) => {
-        assert_eq!(
-            parse($input).unwrap_err().to_string(),
-            indoc::indoc!($expected)
-        );
+        assert_eq!(parse($input).unwrap_err().to_string(), indoc!($expected));
     };
 }
 
@@ -174,10 +172,83 @@ fn assignment_spacing() {
     }
 
     ok! {
-        "> foo   \n   =   \n   42" =>
+        "   > foo   \n   =   \n   42" =>
         Struct({
             "foo": Primitive(PosInt(42))
         })
+    }
+
+    ok! {
+        "
+            > foo = 42
+
+            > bar = 43
+        " =>
+        Struct({
+            "foo": Primitive(PosInt(42)),
+            "bar": Primitive(PosInt(43))
+        })
+    }
+
+    ok! {
+        "
+            > foo = 42
+
+            > bar = 43" =>
+        Struct({
+            "foo": Primitive(PosInt(42)),
+            "bar": Primitive(PosInt(43))
+        })
+    }
+
+    ok! {
+        "
+            > foo = 42
+
+            > bar = 43  " =>
+        Struct({
+            "foo": Primitive(PosInt(42)),
+            "bar": Primitive(PosInt(43))
+        })
+    }
+
+    ok! {
+        "
+
+    
+            > foo = 42
+
+            > bar = 43
+
+
+        " =>
+        Struct({
+            "foo": Primitive(PosInt(42)),
+            "bar": Primitive(PosInt(43))
+        })
+    }
+
+    err! {
+        indoc! {"
+            > foo = 42
+            > bar = 43
+        "} =>
+        " --> 1:11
+        |
+      1 | > foo = 42␊
+        |           ^---
+        |
+        = expected double new line or end of input"
+    }
+
+    err! {
+        "> foo = 42 > bar = 43" =>
+        " --> 1:11
+        |
+      1 | > foo = 42 > bar = 43
+        |           ^---
+        |
+        = expected double new line or end of input"
     }
 
     err! {
@@ -303,7 +374,7 @@ fn sequence_of_primitives_spacing() {
         ])
     }
 
-    err! { 
+    err! {
         "> = [\n1\n\n]" =>
         " --> 2:1
         |
@@ -313,7 +384,7 @@ fn sequence_of_primitives_spacing() {
         = expected `null`, boolean value, negative integer, or floating point number"
     }
 
-    err! { 
+    err! {
         "> = [1,\n\n]" =>
         " --> 2:1
         |

@@ -1,10 +1,10 @@
 konfig = { SOI ~ ( docs | expr+ | NEWLINE | SPACE )* ~ EOI }
 
-docs = @{ !">" ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
+docs = @{ !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
 expr = { path ~ INDENTATION ~ "=" ~ INDENTATION ~ rhs ~ expr_terminator }
 
 // NOTE: at least new lines are required to break quotation in markdown
-expr_terminator = @{ SPACE* ~ ( ( NEWLINE ~ NEWLINE+ ) | EOI ) }
+expr_terminator = @{ SPACE* ~ ( ( NEWLINE ~ NEWLINE+ ) | ( NEWLINE* ~ SPACE* ~ EOI) ) }
 docs_terminator = @{ NEWLINE | EOI }
 
 // Path
@@ -12,7 +12,7 @@ docs_terminator = @{ NEWLINE | EOI }
 path = { 
     path_start ~ ( path_item ~ ( SPACE* ~ separator ~ SPACE* ~ path_item )* )?
 }
-path_start = _{ ">" ~ SPACE* }
+path_start = _{ SPACE* ~ ">" ~ SPACE* }
 separator = _{ ">" ~ ( SPACE* ~ NEWLINE ~ ">" )? }
 path_item = { field_name | enum_variant | map_key | index }
 
@@ -65,11 +65,11 @@ exponent = _{ ( "e" | "E" ) ~ ( "+" | "-" )? ~ ASCII_DIGIT+ }
 
 double_quoted_string = { "\"" ~ double_quoted_string_content ~ "\"" }
 double_quoted_string_content = { ( double_quoted_string_text | esc )* }
-double_quoted_string_text = { ( !("\"" | "\\") ~ ANY )+ }
+double_quoted_string_text = { ( !("\"" | "\\" | NEWLINE ) ~ ANY )+ }
 
 single_quoted_string = { "'" ~ single_quoted_string_content ~ "'" }
 single_quoted_string_content = { ( single_quoted_string_text | esc )* }
-single_quoted_string_text = { ( !("'" | "\\") ~ ANY )+ }
+single_quoted_string_text = { ( !("'" | "\\" | NEWLINE ) ~ ANY )+ }
 
 raw_string = { raw_string_start ~ raw_string_text ~ raw_string_end }
 raw_string_start = { "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
@@ -78,7 +78,7 @@ raw_string_text = { ( !raw_string_end ~ ANY )+ }
 raw_string_lang_ident = _{ ( ASCII_ALPHANUMERIC | "_" )+ }
 
 esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
-esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" | NEWLINE }
+esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" }
 esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
 
 SPACE = _{ " " | "\t" }

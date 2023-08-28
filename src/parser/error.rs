@@ -108,7 +108,7 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             | Rule::single_quoted_string_content
             | Rule::single_quoted_string_text => "single quoted string",
             Rule::esc => "escape sequence",
-            Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or a new line",
+            Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t`",
             Rule::esc_unicode => "unicode character escape sequence",
             Rule::sequence_of_primitives | Rule::sequence_of_primitives_values => "sequence of primitive values",
             Rule::rhs => "assignment right hand side",
@@ -129,7 +129,7 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::SPACE => "` ` or `\\t`",
             Rule::INDENTATION => "optional spaces with a single optional new line",
             Rule::EOI => "end of input",
-            Rule::konfig => "expressions",
+            Rule::konfig => "expression",
             Rule::docs => "documentation",
             Rule::expr_terminator => "double new line or end of input",
             Rule::docs_terminator => "new line or end of input"

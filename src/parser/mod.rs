@@ -17,8 +17,8 @@ type Ast = Rc<RefCell<Option<ValueCell>>>;
 pub fn parse(input: &str) -> Result<ValueCell> {
     let ast = Rc::new(RefCell::new(None));
 
-    parse_rule(Rule::expr, input, Rc::clone(&ast))
-        .and_then(Parser::expr)
+    parse_rule(Rule::konfig, input, Rc::clone(&ast))
+        .and_then(Parser::konfig)
         .map_err(Box::new)
         .map_err(ParseError)
         .map_err(Error::Parsing)?;
@@ -169,11 +169,6 @@ mod tests {
         ok! { double_quoted_string r#""foobar baz  qux""# => "foobar baz  qux".to_string() }
         ok! { double_quoted_string r#""foo \u41\u0042 bar\u00004300""# => "foo AB barC00".to_string() }
 
-        ok! { double_quoted_string "\"foo\n\nbar\"" => "foo\n\nbar".to_string() }
-        ok! { double_quoted_string "\"foo\\\nbar\"" => "foobar".to_string() }
-        ok! { double_quoted_string "\"foo\\\r\nbar\"" => "foobar".to_string() }
-        ok! { double_quoted_string "\"foo\\\rbar\"" => "foobar".to_string() }
-
         ok! {
             double_quoted_string r#""\n foo \t\r \\ baz \" bar \\n""#  =>
             "\n foo \t\r \\ baz \" bar \\n".to_string()
@@ -194,13 +189,49 @@ mod tests {
             " foo ❤ ⏰ bar 🌺 \n".to_string()
         }
 
+        err! { double_quoted_string "\"foo\\\nbar\"" =>
+            r#" --> 1:6
+            |
+          1 | "foo\␊
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+        }
+
+        err! { double_quoted_string "\"foo\\\r\nbar\"" =>
+            r#" --> 1:6
+            |
+          1 | "foo\␍␊
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+        }
+
+        err! { double_quoted_string "\"foo\\\rbar\"" =>
+            r#" --> 1:6
+            |
+          1 | "foo\␍bar"
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"# 
+        }
+
+        err! { double_quoted_string "\"foo\n\nbar\"" =>
+            r#" --> 1:5
+            |
+          1 | "foo␊
+            |     ^---
+            |
+            = expected double quoted string or escape sequence"#
+        }
+
         err! { double_quoted_string r#"" foo \h bar ""# =>
             r#" --> 1:8
             |
           1 | " foo \h bar "
             |        ^---
             |
-            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` or a new line"#
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
         };
 
         err! { double_quoted_string r#"" foo \u110000 bar ""# =>
@@ -287,11 +318,6 @@ mod tests {
         ok! { single_quoted_string r#"'foobar baz  qux'"# => "foobar baz  qux".to_string() }
         ok! { single_quoted_string r#"'foo \u41\u0042 bar\u00004300'"# => "foo AB barC00".to_string() }
 
-        ok! { single_quoted_string "'foo\n\nbar'" => "foo\n\nbar".to_string() }
-        ok! { single_quoted_string "'foo\\\nbar'" => "foobar".to_string() }
-        ok! { single_quoted_string "'foo\\\r\nbar'" => "foobar".to_string() }
-        ok! { single_quoted_string "'foo\\\rbar'" => "foobar".to_string() }
-
         ok! {
             single_quoted_string r#"'\n foo \t\r \\ baz \" bar \\n'"#  =>
             "\n foo \t\r \\ baz \" bar \\n".to_string()
@@ -312,13 +338,49 @@ mod tests {
             " foo ❤ ⏰ bar 🌺 \n".to_string()
         }
 
+        err! { single_quoted_string "'foo\\\nbar'" =>
+            r#" --> 1:6
+            |
+          1 | 'foo\␊
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+        }
+
+        err! { single_quoted_string "'foo\\\r\nbar'" =>
+            r#" --> 1:6
+            |
+          1 | 'foo\␍␊
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
+        }
+
+        err! { single_quoted_string "'foo\\\rbar'" =>
+            r#" --> 1:6
+            |
+          1 | 'foo\␍bar'
+            |      ^---
+            |
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"# 
+        }
+
+        err! { single_quoted_string "'foo\n\nbar'" =>
+            r#" --> 1:5
+            |
+          1 | 'foo␊
+            |     ^---
+            |
+            = expected single quoted string or escape sequence"#
+        }
+
         err! { single_quoted_string r#"' foo \h bar '"# =>
             r#" --> 1:8
             |
           1 | ' foo \h bar '
             |        ^---
             |
-            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` or a new line"#
+            = expected `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`"#
         };
 
         err! { single_quoted_string r#"' foo \u110000 bar '"# =>

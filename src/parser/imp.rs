@@ -99,25 +99,24 @@ impl Parser {
         })
     }
 
-    pub(super) fn esc(node: Node) -> ParseResult<Option<char>> {
+    pub(super) fn esc(node: Node) -> ParseResult<char> {
         Ok(match_nodes! {
             node.children();
             [esc_alias(c)] => c,
-            [esc_unicode(c)] => Some(c),
+            [esc_unicode(c)] => c,
         })
     }
 
-    pub(super) fn esc_alias(node: Node) -> ParseResult<Option<char>> {
+    pub(super) fn esc_alias(node: Node) -> ParseResult<char> {
         Ok(match node.as_str() {
-            "\"" => Some('"'),
-            "\\" => Some('\\'),
-            "/" => Some('/'),
-            "b" => Some('\x08'),
-            "f" => Some('\x0C'),
-            "n" => Some('\n'),
-            "r" => Some('\r'),
-            "t" => Some('\t'),
-            "\n" | "\r" | "\r\n" => None,
+            "\"" => '"',
+            "\\" => '\\',
+            "/" => '/',
+            "b" => '\x08',
+            "f" => '\x0C',
+            "n" => '\n',
+            "r" => '\r',
+            "t" => '\t',
             _ => unreachable!(),
         })
     }
@@ -201,10 +200,7 @@ impl Parser {
 
     pub(super) fn expr(node: Node) -> ParseResult<()> {
         let span = node.as_span();
-
-        for node in node.children() {
-            println!("{:#?}", node.as_rule());
-        }
+        let ast = node.user_data();
 
         let (mut path, rhs) = match_nodes! {
             node.children();
@@ -215,16 +211,12 @@ impl Parser {
         };
 
         let mut new_value = rhs.into();
-        let mut insertion_point = None;
 
-        if let Some(root) = node.user_data().borrow().as_ref() {
-            insertion_point = Some(InsertionPoint::find(
-                &mut path,
-                &new_value,
-                span,
-                root.rc_clone(),
-            )?);
-        }
+        let insertion_point = ast
+            .borrow()
+            .as_ref()
+            .map(|root| InsertionPoint::find(&mut path, &new_value, span, root.rc_clone()))
+            .transpose()?;
 
         for node in path.rev() {
             let span = node.as_span();
@@ -234,10 +226,16 @@ impl Parser {
 
         match insertion_point {
             Some(insertion_point) => insertion_point.insert(new_value)?,
-            None => *node.user_data().borrow_mut() = Some(new_value),
+            None => *ast.borrow_mut() = Some(new_value),
         }
 
         Ok(())
+    }
+
+    pub(super) fn konfig(node: Node) -> ParseResult<()> {
+        node.into_children()
+            .filter(|n| n.as_rule() == Rule::expr)
+            .try_for_each(Parser::expr)
     }
 }
 
@@ -250,9 +248,7 @@ fn parse_quoted_string(node: Node, text_rule: Rule) -> ParseResult<String> {
         match node.as_rule() {
             r if r == text_rule => string.push_str(node.as_str()),
             Rule::esc => {
-                if let Some(esc) = Parser::esc(node)? {
-                    string.push(esc);
-                }
+                string.push(Parser::esc(node)?);
             }
             _ => unreachable!(),
         }
