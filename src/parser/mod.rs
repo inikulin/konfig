@@ -255,60 +255,69 @@ mod tests {
 
     #[test]
     fn parse_raw_string() {
-        ok! { raw_string "```\nfoo\n\nbar\\nbaz\n```" => "foo\n\nbar\\nbaz".to_string() }
-        ok! { raw_string "```\n```\n```" => "```".to_string() }
-        ok! { raw_string "```\n\nabc\n\n```" => "\nabc\n".to_string() }
-        ok! { raw_string "```rust   \nfoobar\n```" => "foobar".to_string() }
-        ok! { raw_string "```rust   \n```rust\n```" => "```rust".to_string() }
+        ok! { raw_string "\n```\nfoo\n\nbar\\nbaz\n```" => "foo\n\nbar\\nbaz".to_string() }
+        ok! { raw_string "\n```\n```\n```" => "```".to_string() }
+        ok! { raw_string "\n```\n\nabc\n\n```" => "\nabc\n".to_string() }
+        ok! { raw_string "\n```rust   \nfoobar\n```" => "foobar".to_string() }
+        ok! { raw_string "\n```rust   \n```rust\n```" => "```rust".to_string() }
 
         ok! {
-            raw_string "```rust\n\t\t  f\n o \n obar  \t\t\n```" =>
+            raw_string "\n```rust\n\t\t  f\n o \n obar  \t\t\n```" =>
             "\t\t  f\n o \n obar  \t\t".to_string()
         }
 
-        err! { raw_string "```foo^bar\ntest\n```" =>
+        err! { raw_string "\n```foo^bar\ntest\n```" =>
             " --> 1:1
             |
-          1 | ```foo^bar
+          1 | ␊
             | ^---
             |
-            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
+            = expected raw string start: new line, followed by ```, followed by an optional language identifier, followed by a mandatory new line"
         }
 
-        err! { raw_string "```\n foo ```" =>
-            " --> 2:9
+        err! { raw_string "\n```\n foo ```" =>
+            " --> 3:9
             |
-          2 |  foo ```
+          3 |  foo ```
             |         ^---
             |
             = expected raw string end: a new line followed by ```"
         }
 
-        err! { raw_string "```\n foo" =>
-            " --> 2:5
+        err! { raw_string "\n```\n foo" =>
+            " --> 3:5
             |
-          2 |  foo
+          3 |  foo
             |     ^---
             |
             = expected raw string end: a new line followed by ```"
         }
 
-        err! { raw_string "``` foo" =>
+        err! { raw_string "\n``` foo" =>
             " --> 1:1
             |
-          1 | ``` foo
+          1 | ␊
             | ^---
             |
-            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
+            = expected raw string start: new line, followed by ```, followed by an optional language identifier, followed by a mandatory new line"
         }
 
-        err! { raw_string "```rust foo" =>
+        err! { raw_string "\n```rust foo" =>
             " --> 1:1
             |
-          1 | ```rust foo
+          1 | ␊
             | ^---
             |
-            = expected raw string start: ``` followed by an optional language identifier, followed by a mandatory new line"
+            = expected raw string start: new line, followed by ```, followed by an optional language identifier, followed by a mandatory new line"
+        }
+
+        err! { raw_string "```\n foo\n```" =>
+            " --> 1:1
+            |
+          1 | ```
+            | ^---
+            |
+            = expected raw string start: new line, followed by ```, followed by an optional language identifier, followed by a mandatory new line"
         }
     }
 
@@ -504,7 +513,7 @@ mod tests {
 
         ok! { rhs "\" foo bar \"" => Value::Primitive(Primitive::String(" foo bar ".into())) }
         ok! { rhs "' foo bar '" => Value::Primitive(Primitive::String(" foo bar ".into())) }
-        ok! { rhs "```rust\n foo\nbar \n```" => Value::Primitive(Primitive::String(" foo\nbar ".into())) }
+        ok! { rhs "\n```rust\n foo\nbar \n```" => Value::Primitive(Primitive::String(" foo\nbar ".into())) }
     }
 
     #[test]

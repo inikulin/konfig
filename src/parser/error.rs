@@ -120,7 +120,7 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::expr => "expression",
             Rule::path => "value path",
             Rule::raw_string_lang_ident
-            | Rule::raw_string_start => "raw string start: ``` followed by an optional language identifier, followed by a mandatory new line",
+            | Rule::raw_string_start => "raw string start: new line, followed by ```, followed by an optional language identifier, followed by a mandatory new line",
             Rule::raw_string_end => "raw string end: a new line followed by ```",
             Rule::raw_string_text => "raw string text",
             Rule::raw_string => "raw string",

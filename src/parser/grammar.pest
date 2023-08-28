@@ -72,7 +72,7 @@ single_quoted_string_content = { ( single_quoted_string_text | esc )* }
 single_quoted_string_text = { ( !("'" | "\\" | NEWLINE ) ~ ANY )+ }
 
 raw_string = { raw_string_start ~ raw_string_text ~ raw_string_end }
-raw_string_start = { "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
+raw_string_start = { NEWLINE ~ "```" ~ raw_string_lang_ident? ~ SPACE* ~ NEWLINE }
 raw_string_end = { NEWLINE ~ "```" }
 raw_string_text = { ( !raw_string_end ~ ANY )+ }
 raw_string_lang_ident = _{ ( ASCII_ALPHANUMERIC | "_" )+ }
