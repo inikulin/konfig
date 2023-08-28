@@ -60,7 +60,12 @@ impl From<Primitive> for AstPrimitive {
 
 macro_rules! ok {
     ($input:expr => $($expected:tt)+) => {{
-        let actual = AstValue::from(parse($input).unwrap());
+        let parsed = match parse($input) {
+            Ok(ast) => ast,
+            Err(err) => panic!("\n{}", err)
+        };
+
+        let actual = AstValue::from(parsed);
         let expected = ron::from_str::<AstValue>(stringify!( $($expected)+)).unwrap();
 
         assert_eq!(actual, expected);
@@ -73,6 +78,14 @@ macro_rules! err {
             parse($input).unwrap_err().to_string(),
             indoc::indoc!($expected)
         );
+    };
+}
+
+// TODO remove
+#[allow(unused_macros)]
+macro_rules! print_err {
+    ($input:expr) => {
+        println!("{}", parse($input).unwrap_err().to_string());
     };
 }
 
@@ -124,5 +137,12 @@ fn simple_assignment() {
 
 #[test]
 fn separator() {
-    err! { "> > foo_bar = 123" => "" }
+    err! { "> > foo_bar = 123" =>
+        " --> 1:3
+        |
+      1 | > > foo_bar = 123
+        |   ^---
+        |
+        = expected path item"
+    }
 }

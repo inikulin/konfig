@@ -2,7 +2,7 @@ value_assignment = { path ~ "=" ~ rhs }
 
 // Path
 //--------------------------------------------------------------------------------------------
-path = { ">" ~ path_item? ~ ( ">" ~ path_item )* }
+path = { ( ">" ~ path_item )+ | ">" }
 path_item = { field_name | enum_variant | map_key | index }
 
 field_name = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" )* }

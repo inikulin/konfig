@@ -113,14 +113,6 @@ mod tests {
         };
     }
 
-    // TODO remove
-    #[allow(unused_macros)]
-    macro_rules! print_err {
-        ($rule:ident $input:expr) => {
-            println!("{}", parse!($rule $input).unwrap_err().to_string());
-        };
-    }
-
     #[test]
     fn parse_null() {
         ok! { null "null" => () }
