@@ -3,12 +3,12 @@ mod imp;
 mod insertion_point;
 mod path_item;
 
-use self::error::{ParseError, ParseResult};
+use self::error::{rename_rules, ParseError, ParseResult};
 use self::imp::{Node, Parser, Rule};
 use crate::error::{Error, Result};
 use crate::value::ValueCell;
 use pest::Span;
-use pest_consume::{Error as PestError, Parser as PestParser};
+use pest_consume::Parser as _;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -41,48 +41,6 @@ fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
     crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
 
     res
-}
-
-fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
-    err.renamed_rules(|rule| {
-        match rule {
-            Rule::pos_int => "positive integer",
-            Rule::neg_int => "negative integer",
-            Rule::hex_digits => "hexadecimal digits",
-            Rule::dec_digits => "digits",
-            Rule::null => "`null`",
-            Rule::boolean | Rule::boolean_true | Rule::boolean_false => "boolean value",
-            Rule::primitive => "primitive value",
-            Rule::float => "floating point number",
-            Rule::exponent => "exponent",
-            Rule::double_quoted_string
-            | Rule::double_quoted_string_content
-            | Rule::double_quoted_string_text => "double quoted string",
-            Rule::single_quoted_string
-            | Rule::single_quoted_string_content
-            | Rule::single_quoted_string_text => "single quoted string",
-            Rule::esc => "escape sequence",
-            Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or a new line",
-            Rule::esc_unicode => "unicode character escape sequence",
-            Rule::sequence_of_primitives | Rule::sequence_of_primitives_values => "sequence of primitive values",
-            Rule::rhs => "assignment right hand side",
-            Rule::index | Rule::index_digits => "sequence index",
-            Rule::field_name => "field name",
-            Rule::enum_variant | Rule::enum_variant_ident => "enum variant",
-            Rule::map_key | Rule::map_key_literal => "map key",
-            Rule::path_item => "path item",
-            Rule::value_assignment => "value assignment",
-            Rule::path => "value path",
-            Rule::raw_string_lang_ident
-            | Rule::raw_string_start => "raw string start: ``` followed by an optional language identifier, followed by a mandatory new line",
-            Rule::raw_string_end => "raw string end: a new line followed by ```",
-            Rule::raw_string_text => "raw string text",
-            Rule::raw_string => "raw string",
-            Rule::COMMENT => "comment",
-            Rule::SPACE => "` ` or `\\t`",
-            Rule::WHITESPACE => "whitespace",
-        }.into()
-    })
 }
 
 #[cfg(test)]
