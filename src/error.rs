@@ -6,10 +6,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("map key should be a string or index")]
     InvalidMapKeyType,
-    #[error("tuples are unsupported")]
-    TuplesUnsupported,
-    #[error("structure enum variants are unsupported")]
-    StructVariantsUnsupported,
+    #[error("128-bit integers are not supported")]
+    Int128NotSupported,
     #[error("{0}")]
     Parsing(ParseError),
     #[error("{0}")]

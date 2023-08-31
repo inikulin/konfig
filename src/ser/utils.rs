@@ -1,6 +1,6 @@
 use crate::error::Result;
 
-pub(crate) fn write_escaped_str(out: &mut String, v: &str) {
+pub(super) fn write_escaped_str(out: &mut String, v: &str) {
     let mut start = 0;
 
     out.push('"');
@@ -24,20 +24,20 @@ pub(crate) fn write_escaped_str(out: &mut String, v: &str) {
 }
 
 #[inline]
-pub(crate) fn write_int(out: &mut String, v: impl itoa::Integer) {
+pub(super) fn write_int(out: &mut String, v: impl itoa::Integer) {
     let mut buffer = itoa::Buffer::new();
 
     out.push_str(buffer.format(v));
 }
 
 #[inline]
-pub(crate) fn write_float(out: &mut String, v: impl ryu::Float) {
+pub(super) fn write_float(out: &mut String, v: impl ryu::Float) {
     let mut buffer = ryu::Buffer::new();
 
     out.push_str(buffer.format(v));
 }
 
-pub(crate) fn make_map_key(
+pub(super) fn make_map_key(
     key_serializer: impl FnOnce(&mut String) -> Result<()>,
 ) -> Result<String> {
     let mut key = String::with_capacity(16);

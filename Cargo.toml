@@ -27,6 +27,7 @@ pest_consume = "1.0"
 pest = "2.1"
 
 [dev-dependencies]
+erased-serde = "0.3"
 indoc = "2.0"
 serde_yaml = "0.9"
 ron = "0.8"

@@ -1,24 +1,16 @@
-use super::introspector::{Introspector, ValueKind};
 use super::map_key::MapKeySerializer;
 use super::Serializer;
 use crate::error::{Error, Result};
 use serde::ser::Serialize;
 
-#[derive(PartialEq)]
-pub(super) enum KVSerializerMode {
-    Default,
-    WithPathPopOnCompletion,
-    Noop,
-}
-
 pub struct KVSerializer<'s, 'o> {
     pub(super) inner: &'s mut Serializer<'o>,
-    mode: KVSerializerMode,
 }
 
 impl<'s, 'o> KVSerializer<'s, 'o> {
-    pub(super) fn new(inner: &'s mut Serializer<'o>, mode: KVSerializerMode) -> Self {
-        Self { inner, mode }
+    #[inline]
+    pub(super) fn new(inner: &'s mut Serializer<'o>) -> Self {
+        Self { inner }
     }
 }
 
@@ -30,9 +22,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        if self.mode != KVSerializerMode::Noop {
-            self.inner.push_path(MapKeySerializer::serialize(key)?);
-        }
+        self.inner.push_path(MapKeySerializer::serialize(key)?);
 
         Ok(())
     }
@@ -41,14 +31,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
-        match Introspector::val_kind(value) {
-            ValueKind::Leaf | ValueKind::KvOnlyLeaf => value.serialize(&mut *self.inner)?,
-            _ => value.serialize(&mut *self.inner)?,
-        }
+        value.serialize(&mut *self.inner)?;
 
         self.inner.pop_path();
 
@@ -57,14 +40,6 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
 
     #[inline]
     fn end(self) -> Result<()> {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
-        if self.mode == KVSerializerMode::WithPathPopOnCompletion {
-            self.inner.pop_path();
-        }
-
         Ok(())
     }
 }
@@ -77,10 +52,6 @@ impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        if self.mode == KVSerializerMode::Noop {
-            return Ok(());
-        }
-
         self.inner.push_path(key);
 
         serde::ser::SerializeMap::serialize_value(self, value)
@@ -88,7 +59,7 @@ impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
 
     #[inline]
     fn end(self) -> Result<()> {
-        serde::ser::SerializeMap::end(self)
+        Ok(())
     }
 }
 
@@ -106,6 +77,7 @@ impl<'s, 'o> serde::ser::SerializeStructVariant for KVSerializer<'s, 'o> {
 
     #[inline]
     fn end(self) -> Result<()> {
-        serde::ser::SerializeMap::end(self)
+        self.inner.pop_path();
+        Ok(())
     }
 }

@@ -12,7 +12,7 @@ macro_rules! ok {
 }
 
 macro_rules! err {
-    ($rust:expr, $err:expr) => {
+    ($rust:expr => $err:expr) => {
         let err = konfig::to_string(&$rust).unwrap_err();
 
         assert_eq!(err, $err);
@@ -61,6 +61,12 @@ fn f64_val() {
     ok! { f64::MIN => "> = -1.7976931348623157e308" }
     ok! { f64::MAX => "> = 1.7976931348623157e308" }
     ok! { f64::EPSILON => "> = 2.220446049250313e-16" }
+}
+
+#[test]
+fn ints128_val() {
+    err! { 0u128 => Error::Int128NotSupported }
+    err! { 0i128 => Error::Int128NotSupported }
 }
 
 #[test]
@@ -166,9 +172,244 @@ fn list_val() {
 }
 
 #[test]
+fn list_of_enums() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum Variant {
+        Primitive(usize),
+        Compound(Vec<usize>),
+    }
+
+    ok! {
+        vec![Variant::Primitive(1), Variant::Compound(vec![2])] => indoc! {"
+            > [0] > `Primitive` = 1
+
+            > [1] > `Compound` = [2]\
+        "}
+    }
+}
+
+#[test]
+fn list_of_dynamics() {
+    // NOTE: primitive value checker can't see into erased values, so we serialize those as compound
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(vec![43])];
+
+    ok! {
+        list => indoc! {"
+            > [0] = 42
+
+            > [1] > [0] = 43\
+        "}
+    }
+
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(43)];
+
+    ok! {
+        list => indoc! {"
+            > [0] = 42
+
+            > [1] = 43\
+        "}
+    }
+}
+
+#[test]
 fn tuple_value() {
-    err!((5,), Error::TuplesUnsupported);
-    err!((5, (6, "abc")), Error::TuplesUnsupported);
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum Variant {
+        Unit,
+        String(String),
+        Vec(Vec<usize>),
+    }
+
+    ok! {
+        (5, (), 7, (6, "abc"), true, vec![42u8]) => indoc! {"
+            > [0] = 5
+
+            > [1] = null
+
+            > [2] = 7
+
+            > [3] = [6, \"abc\"]
+
+            > [4] = true
+
+            > [5] = [42]\
+        "}
+    }
+
+    ok! {
+        (5,) => "> = [5]"
+    }
+
+    ok! {
+        (5, true, Variant::Unit) => "> = [5, true, `Unit`]"
+    }
+
+    ok! {
+        (
+            Variant::Unit,
+            Variant::String("test".into()),
+            Variant::Vec(vec![1, 2, 3])
+        ) => indoc! {"
+            > [0] = `Unit`
+
+            > [1] > `String` = \"test\"
+
+            > [2] > `Vec` = [1, 2, 3]\
+        "}
+    }
+}
+
+#[test]
+fn tuple_struct_value() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum Variant {
+        Unit,
+        String(String),
+        Vec(Vec<usize>),
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple1(usize, (), u8, (usize, String), bool, Vec<u8>);
+
+    ok! {
+        Tuple1(5, (), 7, (6, "abc".to_string()), true, vec![42u8]) => indoc! {"
+            > [0] = 5
+
+            > [1] = null
+
+            > [2] = 7
+
+            > [3] = [6, \"abc\"]
+
+            > [4] = true
+
+            > [5] = [42]\
+        "}
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple2(u16, u32);
+
+    ok! {
+        Tuple2(5, 6) => "> = [5, 6]"
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple3(i32, bool, Variant);
+
+    ok! {
+        Tuple3(5, true, Variant::Unit) => "> = [5, true, `Unit`]"
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple4(Variant, Variant, Variant);
+
+    ok! {
+        Tuple4(
+            Variant::Unit,
+            Variant::String("test".into()),
+            Variant::Vec(vec![1, 2, 3])
+        ) => indoc! {"
+            > [0] = `Unit`
+
+            > [1] > `String` = \"test\"
+
+            > [2] > `Vec` = [1, 2, 3]\
+        "}
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple5(String, Tuple2, Tuple3);
+
+    ok! {
+        Tuple5(
+            "Hello".into(),
+            Tuple2(42, 24),
+            Tuple3(43, false, Variant::Vec(vec![44, 45]))
+        ) => indoc! {"
+            > [0] = \"Hello\"
+
+            > [1] = [42, 24]
+
+            > [2] > [0] = 43
+
+            > [2] > [1] = false
+
+            > [2] > [2] > `Vec` = [44, 45]\
+        "}
+    }
+}
+
+#[test]
+fn tuple_enum_variant_value() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum Variant {
+        Tuple1(usize, (), u8, (usize, String), bool, Vec<u8>),
+        Tuple2(u16, u32),
+    }
+
+    ok! {
+        vec![
+            Variant::Tuple1(5, (), 7, (6, "abc".to_string()), true, vec![42u8]),
+            Variant::Tuple2(42, 43)
+        ] => indoc! {"
+            > [0] > `Tuple1` > [0] = 5
+
+            > [0] > `Tuple1` > [1] = null
+
+            > [0] > `Tuple1` > [2] = 7
+
+            > [0] > `Tuple1` > [3] = [6, \"abc\"]
+
+            > [0] > `Tuple1` > [4] = true
+
+            > [0] > `Tuple1` > [5] = [42]
+
+            > [1] > `Tuple2` = [42, 43]\
+        "}
+    }
+}
+
+#[test]
+fn struct_enum_variant() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum Variant {
+        Struct1 {
+            usize_field: usize,
+            vec_field: Vec<usize>,
+            tuple_field: (usize, String, Vec<usize>),
+        },
+        Struct2 {
+            str_field: &'static str,
+        },
+    }
+
+    ok! {
+        vec![
+            Variant::Struct1 {
+                usize_field: 42,
+                vec_field: vec![43, 44],
+                tuple_field: (45, "Hello".into(), vec![46, 47, 48])
+            },
+            Variant::Struct2 {
+                str_field: "World"
+            }
+
+        ] => indoc! {"
+            > [0] > `Struct1` > usize_field = 42
+
+            > [0] > `Struct1` > vec_field = [43, 44]
+
+            > [0] > `Struct1` > tuple_field > [0] = 45
+
+            > [0] > `Struct1` > tuple_field > [1] = \"Hello\"
+
+            > [0] > `Struct1` > tuple_field > [2] = [46, 47, 48]
+
+            > [1] > `Struct2` > str_field = \"World\"\
+        "}
+    }
 }
 
 #[test]
@@ -286,17 +527,23 @@ fn enum_value() {
 
     ok! { Animal::Dog => "> = `Dog`" };
 
-    err!(
-        Animal::Frog("Henry".to_string(), vec![]),
-        Error::TuplesUnsupported
+    ok!(
+        Animal::Frog("Henry".to_string(), vec![]) => indoc!{"
+            > `Frog` > [0] = \"Henry\"
+        
+            > `Frog` > [1] = []\
+        "}
     );
 
-    err! {
+    ok! {
         Animal::Cat {
             age: 5,
             name: "Kate".to_string(),
-        },
-        Error::StructVariantsUnsupported
+        } => indoc!{"
+            > `Cat` > age = 5
+
+            > `Cat` > name = \"Kate\"\
+        "}
     };
 
     ok! {

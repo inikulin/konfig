@@ -200,9 +200,13 @@ fn serialize_complex_structure() {
     };
 
     let serialized = konfig::to_string(&val).unwrap();
+    let expected = include_str!("./data/expected/complex_structure.k.md");
 
     assert_eq!(
         serialized,
-        include_str!("./data/expected/complex_structure.k.md")
+        include_str!("./data/expected/complex_structure.k.md"),
+        "expected:\n\n{}\n\n but got:\n\n{}\n\n",
+        expected,
+        serialized
     )
 }

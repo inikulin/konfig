@@ -414,6 +414,37 @@ fn sequence_of_primitives_spacing() {
 }
 
 #[test]
+fn empty_sequence_of_primitives_spacing() {
+    ok! {
+        "> = []" =>
+        Sequence([])
+    }
+
+    ok! {
+        "> = [             ]" =>
+        Sequence([])
+    }
+
+    ok! {
+        "> = [
+        ]" =>
+        Sequence([])
+    }
+
+    err! {
+        "> = [
+
+        ]" =>
+        " --> 2:1
+        |
+      2 | ␊
+        | ^---
+        |
+        = expected primitive value"
+    }
+}
+
+#[test]
 fn numbers_spacing() {
     err! {
         "> = - 3" =>
