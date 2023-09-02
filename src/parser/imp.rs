@@ -31,8 +31,8 @@ impl Parser {
             node.children();
             [null(_)] => Value::Null,
             [boolean(v)] => Value::Bool(v),
-            [pos_int(v)] => Value::PosInt(v),
-            [neg_int(v)] => Value::NegInt(v),
+            [pos_int(v)] => Value::UInt(v),
+            [neg_int(v)] => Value::Int(v),
             [float(v)] => Value::Float(v),
             [single_quoted_string(v)] => Value::String(v),
             [double_quoted_string(v)] => Value::String(v),
@@ -138,11 +138,12 @@ impl Parser {
             }
         }
 
-        let meta = ParsingMeta {
-            is_inline_seq: true,
-        };
-
-        Ok((Value::Sequence(seq), meta).into())
+        Ok(ValueCell::new(
+            Value::Sequence(seq),
+            ParsingMeta {
+                is_inline_seq: true,
+            },
+        ))
     }
 
     pub(super) fn rhs(node: Node) -> ParseResult<ValueCell> {

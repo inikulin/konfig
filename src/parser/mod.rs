@@ -424,9 +424,9 @@ mod tests {
         ok! {
             sequence_of_primitives "[ 41 ,  \n 42, 43, ]" =>
             Value::Sequence(vec![
-                Value::PosInt(41).into(),
-                Value::PosInt(42).into(),
-                Value::PosInt(43).into()
+                Value::UInt(41).into(),
+                Value::UInt(42).into(),
+                Value::UInt(43).into()
             ])
         }
 
@@ -435,8 +435,8 @@ mod tests {
             Value::Sequence(vec![
                 Value::Null.into(),
                 Value::Bool(true).into(),
-                Value::PosInt(42).into(),
-                Value::NegInt(-42).into(),
+                Value::UInt(42).into(),
+                Value::Int(-42).into(),
                 Value::Float(42.42).into(),
                 Value::String("foo bar".into()).into(),
                 Value::String("baz qux".into()).into()
@@ -502,8 +502,8 @@ mod tests {
         ok! {
             rhs "[1, 2]" =>
             Value::Sequence(vec![
-               Value::PosInt(1).into(),
-               Value::PosInt(2).into()
+               Value::UInt(1).into(),
+               Value::UInt(2).into()
             ])
         }
 
@@ -512,11 +512,11 @@ mod tests {
         ok! { rhs "true" => Value::Bool(true) }
         ok! { rhs "false" => Value::Bool(false) }
 
-        ok! { rhs "42" => Value::PosInt(42) }
-        ok! { rhs "0x2A" => Value::PosInt(42) }
+        ok! { rhs "42" => Value::UInt(42) }
+        ok! { rhs "0x2A" => Value::UInt(42) }
 
-        ok! { rhs "-42" => Value::NegInt(-42) }
-        ok! { rhs "-0x2A" => Value::NegInt(-42) }
+        ok! { rhs "-42" => Value::Int(-42) }
+        ok! { rhs "-0x2A" => Value::Int(-42) }
 
         ok! { rhs "42." => Value::Float(42.0) }
         ok! { rhs "42.42" => Value::Float(42.42) }

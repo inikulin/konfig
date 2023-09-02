@@ -1,4 +1,4 @@
-mod api;
+mod conv;
 
 use crate::parser::ParsingMeta;
 use std::cell::{Ref, RefCell, RefMut};
@@ -8,19 +8,20 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum Value {
+    #[default]
+    Null,
+    Bool(bool),
+    UInt(u64),
+    Int(i64),
+    Float(f64),
+    String(String),
+    UnitVariant(String),
     Sequence(Vec<ValueCell>),
     Map(HashMap<String, ValueCell>),
     Struct(HashMap<String, ValueCell>),
     Variant(String, ValueCell),
-    Null,
-    Bool(bool),
-    PosInt(u64),
-    NegInt(i64),
-    Float(f64),
-    String(String),
-    UnitVariant(String),
 }
 
 impl Value {
@@ -54,6 +55,13 @@ pub(super) struct ValueCellInternal {
 pub struct ValueCell(Rc<RefCell<ValueCellInternal>>);
 
 impl ValueCell {
+    pub(super) fn new(value: Value, parsing_meta: ParsingMeta) -> Self {
+        Self(Rc::new(RefCell::new(ValueCellInternal {
+            value,
+            parsing_meta,
+        })))
+    }
+
     #[inline]
     pub(super) fn rc_clone(&self) -> Self {
         Self(Rc::clone(&self.0))
@@ -120,18 +128,9 @@ impl Clone for ValueCell {
     }
 }
 
-impl From<(Value, ParsingMeta)> for ValueCell {
-    fn from((value, parsing_meta): (Value, ParsingMeta)) -> Self {
-        Self(Rc::new(RefCell::new(ValueCellInternal {
-            value,
-            parsing_meta,
-        })))
-    }
-}
-
 impl From<Value> for ValueCell {
     fn from(value: Value) -> Self {
-        (value, Default::default()).into()
+        Self::new(value, Default::default())
     }
 }
 
@@ -176,9 +175,9 @@ mod tests {
     #[test]
     fn value_from_cell() {
         let value = Value::Sequence(vec![
-            Value::PosInt(42).into(),
-            Value::PosInt(43).into(),
-            Value::PosInt(44).into(),
+            Value::UInt(42).into(),
+            Value::UInt(43).into(),
+            Value::UInt(44).into(),
         ]);
 
         let cell = ValueCell::from(value.clone());
