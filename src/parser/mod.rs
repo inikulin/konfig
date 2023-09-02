@@ -52,7 +52,7 @@ fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
 mod tests {
     use super::path_item::PathItem;
     use super::*;
-    use crate::value::{Primitive, Value};
+    use crate::value::Value;
     use indoc::indoc;
 
     macro_rules! parse {
@@ -424,22 +424,22 @@ mod tests {
         ok! {
             sequence_of_primitives "[ 41 ,  \n 42, 43, ]" =>
             Value::Sequence(vec![
-                Value::Primitive(Primitive::PosInt(41)).into(),
-                Value::Primitive(Primitive::PosInt(42)).into(),
-                Value::Primitive(Primitive::PosInt(43)).into()
+                Value::PosInt(41).into(),
+                Value::PosInt(42).into(),
+                Value::PosInt(43).into()
             ])
         }
 
         ok! {
             sequence_of_primitives "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
             Value::Sequence(vec![
-                Value::Primitive(Primitive::Null).into(),
-                Value::Primitive(Primitive::Bool(true)).into(),
-                Value::Primitive(Primitive::PosInt(42)).into(),
-                Value::Primitive(Primitive::NegInt(-42)).into(),
-                Value::Primitive(Primitive::Float(42.42)).into(),
-                Value::Primitive(Primitive::String("foo bar".into())).into(),
-                Value::Primitive(Primitive::String("baz qux".into())).into()
+                Value::Null.into(),
+                Value::Bool(true).into(),
+                Value::PosInt(42).into(),
+                Value::NegInt(-42).into(),
+                Value::Float(42.42).into(),
+                Value::String("foo bar".into()).into(),
+                Value::String("baz qux".into()).into()
             ])
         }
 
@@ -497,35 +497,35 @@ mod tests {
 
     #[test]
     fn parse_rhs() {
-        ok! { rhs "`Foo`" => Value::Primitive(Primitive::UnitVariant("Foo".into())) }
+        ok! { rhs "`Foo`" => Value::UnitVariant("Foo".into()) }
 
         ok! {
             rhs "[1, 2]" =>
             Value::Sequence(vec![
-                Value::Primitive(Primitive::PosInt(1)).into(),
-                Value::Primitive(Primitive::PosInt(2)).into()
+               Value::PosInt(1).into(),
+               Value::PosInt(2).into()
             ])
         }
 
-        ok! { rhs "null" => Value::Primitive(Primitive::Null) }
+        ok! { rhs "null" => Value::Null }
 
-        ok! { rhs "true" => Value::Primitive(Primitive::Bool(true)) }
-        ok! { rhs "false" => Value::Primitive(Primitive::Bool(false)) }
+        ok! { rhs "true" => Value::Bool(true) }
+        ok! { rhs "false" => Value::Bool(false) }
 
-        ok! { rhs "42" => Value::Primitive(Primitive::PosInt(42)) }
-        ok! { rhs "0x2A" => Value::Primitive(Primitive::PosInt(42)) }
+        ok! { rhs "42" => Value::PosInt(42) }
+        ok! { rhs "0x2A" => Value::PosInt(42) }
 
-        ok! { rhs "-42" => Value::Primitive(Primitive::NegInt(-42)) }
-        ok! { rhs "-0x2A" => Value::Primitive(Primitive::NegInt(-42)) }
+        ok! { rhs "-42" => Value::NegInt(-42) }
+        ok! { rhs "-0x2A" => Value::NegInt(-42) }
 
-        ok! { rhs "42." => Value::Primitive(Primitive::Float(42.0)) }
-        ok! { rhs "42.42" => Value::Primitive(Primitive::Float(42.42)) }
-        ok! { rhs "-42.42" => Value::Primitive(Primitive::Float(-42.42)) }
-        ok! { rhs "1.956e-10" => Value::Primitive(Primitive::Float(1.956e-10)) }
+        ok! { rhs "42." => Value::Float(42.0) }
+        ok! { rhs "42.42" => Value::Float(42.42) }
+        ok! { rhs "-42.42" => Value::Float(-42.42) }
+        ok! { rhs "1.956e-10" => Value::Float(1.956e-10) }
 
-        ok! { rhs "\" foo bar \"" => Value::Primitive(Primitive::String(" foo bar ".into())) }
-        ok! { rhs "' foo bar '" => Value::Primitive(Primitive::String(" foo bar ".into())) }
-        ok! { rhs "\n```rust\n foo\nbar \n```" => Value::Primitive(Primitive::String(" foo\nbar ".into())) }
+        ok! { rhs "\" foo bar \"" => Value::String(" foo bar ".into()) }
+        ok! { rhs "' foo bar '" => Value::String(" foo bar ".into()) }
+        ok! { rhs "\n```rust\n foo\nbar \n```" => Value::String(" foo\nbar ".into()) }
     }
 
     #[test]

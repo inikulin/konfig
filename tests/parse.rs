@@ -1,6 +1,6 @@
 use indoc::indoc;
 use konfig::parser::parse;
-use konfig::value::{Primitive, Value, ValueCell};
+use konfig::value::{Value, ValueCell};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -13,7 +13,13 @@ pub enum AstValue {
     Map(HashMap<String, AstValue>),
     Struct(HashMap<String, AstValue>),
     Variant(String, Box<AstValue>),
-    Primitive(AstPrimitive),
+    Null,
+    Bool(bool),
+    PosInt(u64),
+    NegInt(i64),
+    Float(f64),
+    String(String),
+    UnitVariant(String),
 }
 
 impl From<ValueCell> for AstValue {
@@ -25,32 +31,13 @@ impl From<ValueCell> for AstValue {
                 AstValue::Struct(s.into_iter().map(|(k, v)| (k, v.into())).collect())
             }
             Value::Variant(name, val) => AstValue::Variant(name, Box::new(val.into())),
-            Value::Primitive(p) => AstValue::Primitive(p.into()),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum AstPrimitive {
-    Null,
-    Bool(bool),
-    PosInt(u64),
-    NegInt(i64),
-    Float(f64),
-    String(String),
-    UnitVariant(String),
-}
-
-impl From<Primitive> for AstPrimitive {
-    fn from(value: Primitive) -> Self {
-        match value {
-            Primitive::Null => AstPrimitive::Null,
-            Primitive::Bool(v) => AstPrimitive::Bool(v),
-            Primitive::PosInt(v) => AstPrimitive::PosInt(v),
-            Primitive::NegInt(v) => AstPrimitive::NegInt(v),
-            Primitive::Float(v) => AstPrimitive::Float(v),
-            Primitive::String(v) => AstPrimitive::String(v),
-            Primitive::UnitVariant(v) => AstPrimitive::UnitVariant(v),
+            Value::Null => AstValue::Null,
+            Value::Bool(v) => AstValue::Bool(v),
+            Value::PosInt(v) => AstValue::PosInt(v),
+            Value::NegInt(v) => AstValue::NegInt(v),
+            Value::Float(v) => AstValue::Float(v),
+            Value::String(v) => AstValue::String(v),
+            Value::UnitVariant(v) => AstValue::UnitVariant(v),
         }
     }
 }
@@ -91,9 +78,9 @@ fn simple_assignment() {
                     "Baz",
                     Map({
                         "qux quz" : Sequence([
-                            Primitive(PosInt(1)),
-                            Primitive(PosInt(2)),
-                            Primitive(PosInt(3))
+                            PosInt(1),
+                            PosInt(2),
+                            PosInt(3)
                         ])
                     })
                 )
@@ -102,20 +89,20 @@ fn simple_assignment() {
     }
 
     ok! {
-        "> = `Hello`" => Primitive(UnitVariant("Hello"))
+        "> = `Hello`" => UnitVariant("Hello")
     }
 
     ok! {
         "> foo_bar = `Hello`" =>
         Struct({
-            "foo_bar": Primitive(UnitVariant("Hello"))
+            "foo_bar": UnitVariant("Hello")
         })
     }
 
     ok! {
         "> ['>'] = `Hello`" =>
         Map({
-            ">": Primitive(UnitVariant("Hello"))
+            ">": UnitVariant("Hello")
         })
     }
 }
@@ -128,7 +115,7 @@ fn assignment_spacing() {
             "Hello",
             Variant(
                 "World",
-                Primitive(Bool(true))
+                Bool(true)
             )
         )
     }
@@ -138,7 +125,7 @@ fn assignment_spacing() {
         Struct({
             "foo": Struct({
                 "bar": Struct({
-                    "baz": Primitive(Bool(true))
+                    "baz": Bool(true)
                 })
             })
         })
@@ -149,7 +136,7 @@ fn assignment_spacing() {
         Struct({
             "foo": Struct({
                 "bar": Struct({
-                    "baz": Primitive(Bool(true))
+                    "baz": Bool(true)
                 })
             })
         })
@@ -158,14 +145,14 @@ fn assignment_spacing() {
     ok! {
         ">foo=42" =>
         Struct({
-            "foo": Primitive(PosInt(42))
+            "foo": PosInt(42)
         })
     }
 
     ok! {
         "> foo      =      42" =>
         Struct({
-            "foo": Primitive(PosInt(42))
+            "foo": PosInt(42)
         })
     }
 
@@ -176,8 +163,8 @@ fn assignment_spacing() {
             > bar = 43
         " =>
         Struct({
-            "foo": Primitive(PosInt(42)),
-            "bar": Primitive(PosInt(43))
+            "foo": PosInt(42),
+            "bar": PosInt(43)
         })
     }
 
@@ -187,8 +174,8 @@ fn assignment_spacing() {
 
             > bar = 43" =>
         Struct({
-            "foo": Primitive(PosInt(42)),
-            "bar": Primitive(PosInt(43))
+            "foo": PosInt(42),
+            "bar": PosInt(43)
         })
     }
 
@@ -198,8 +185,8 @@ fn assignment_spacing() {
 
             > bar = 43  " =>
         Struct({
-            "foo": Primitive(PosInt(42)),
-            "bar": Primitive(PosInt(43))
+            "foo": PosInt(42),
+            "bar": PosInt(43)
         })
     }
 
@@ -214,15 +201,15 @@ fn assignment_spacing() {
 
         " =>
         Struct({
-            "foo": Primitive(PosInt(42)),
-            "bar": Primitive(PosInt(43))
+            "foo": PosInt(42),
+            "bar": PosInt(43)
         })
     }
 
     ok! {
         "> foo  \n =  42" =>
         Struct({
-            "foo": Primitive(PosInt(42))
+            "foo": PosInt(42)
         })
     }
 
@@ -354,31 +341,31 @@ fn sequence_of_primitives_spacing() {
     ok! {
         "> = [ \n  1.3e+10,  'foo',true \n  , 42  \n, \n ]" =>
         Sequence([
-            Primitive(Float(1.3e+10)),
-            Primitive(String("foo")),
-            Primitive(Bool(true)),
-            Primitive(PosInt(42)),
+            Float(1.3e+10),
+            String("foo"),
+            Bool(true),
+            PosInt(42),
         ])
     }
 
     ok! {
         "> = [ 1\n  ]" =>
         Sequence([
-            Primitive(PosInt(1)),
+            PosInt(1),
         ])
     }
 
     ok! {
         "> = [\n1]" =>
         Sequence([
-            Primitive(PosInt(1)),
+            PosInt(1),
         ])
     }
 
     ok! {
         "> = [1,\n]" =>
         Sequence([
-            Primitive(PosInt(1)),
+            PosInt(1),
         ])
     }
 
@@ -499,11 +486,11 @@ fn numbers_spacing() {
 
 #[test]
 fn parse_path_item() {
-    ok! { "> foo_bar = null" => Struct({ "foo_bar": Primitive(Null) }) }
-    ok! { "> `FooBar` = null" => Variant("FooBar", Primitive(Null)) }
-    ok! { "> [0] = null" => Sequence([Primitive(Null)]) }
-    ok! { "> [\"foobar\"] = null" => Map({ "foobar": Primitive(Null) }) }
-    ok! { "> ['foobar'] = null" => Map({ "foobar": Primitive(Null) }) }
+    ok! { "> foo_bar = null" => Struct({ "foo_bar": Null }) }
+    ok! { "> `FooBar` = null" => Variant("FooBar", Null) }
+    ok! { "> [0] = null" => Sequence([Null]) }
+    ok! { "> [\"foobar\"] = null" => Map({ "foobar": Null }) }
+    ok! { "> ['foobar'] = null" => Map({ "foobar": Null }) }
 }
 
 #[test]
@@ -546,35 +533,35 @@ fn parse_rhs() {
             > string > single = ' foo bar '
 
         "#} => Struct({
-            "enum_variant": Primitive(UnitVariant("Foo")),
+            "enum_variant": UnitVariant("Foo"),
             "seq_of_primitives": Sequence([
-                Primitive(String("foo")),
-                Primitive(String("bar")),
-                Primitive(PosInt(1)),
-                Primitive(Float(2.3e1)),
-                Primitive(Null)
+                String("foo"),
+                String("bar"),
+                PosInt(1),
+                Float(2.3e1),
+                Null
             ]),
-            "null": Primitive(Null),
+            "null": Null,
             "bool": Struct({
-                "true": Primitive(Bool(true)),
-                "false": Primitive(Bool(false))
+                "true": Bool(true),
+                "false": Bool(false)
             }),
             "pos_int": Struct({
-                "dec": Primitive(PosInt(42)),
+                "dec": PosInt(42),
                 "hex": Struct({
-                    "hi": Primitive(PosInt(42)),
-                    "lo": Primitive(PosInt(42))
+                    "hi": PosInt(42),
+                    "lo": PosInt(42)
                 })
             }),
             "float": Sequence([
-                Primitive(Float(42.0)),
-                Primitive(Float(42.42)),
-                Primitive(Float(1.956e-10)),
+                Float(42.0),
+                Float(42.42),
+                Float(1.956e-10),
             ]),
             "string": Struct({
-                "raw": Primitive(String(" foo bar ")),
-                "double": Primitive(String(" foo bar ")),
-                "single": Primitive(String(" foo bar "))
+                "raw": String(" foo bar "),
+                "double": String(" foo bar "),
+                "single": String(" foo bar ")
             })
         })
     }
@@ -626,8 +613,8 @@ fn doc_and_expr_spacing() {
             123
         "} => 
         Struct({
-            "foo": Primitive(PosInt(3)),
-            "bar": Primitive(PosInt(4))
+            "foo": PosInt(3),
+            "bar": PosInt(4)
         })
     }
 
@@ -648,7 +635,7 @@ fn doc_and_expr_spacing() {
             123
         "} => 
         Struct({
-            "foo": Primitive(String("foo\nbar\n\nbaz")),
+            "foo": String("foo\nbar\n\nbaz"),
         })
     }
 

@@ -1,3 +1,5 @@
+mod api;
+
 use crate::parser::ParsingMeta;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -12,11 +14,6 @@ pub enum Value {
     Map(HashMap<String, ValueCell>),
     Struct(HashMap<String, ValueCell>),
     Variant(String, ValueCell),
-    Primitive(Primitive),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Primitive {
     Null,
     Bool(bool),
     PosInt(u64),
@@ -179,9 +176,9 @@ mod tests {
     #[test]
     fn value_from_cell() {
         let value = Value::Sequence(vec![
-            Value::Primitive(Primitive::PosInt(42)).into(),
-            Value::Primitive(Primitive::PosInt(43)).into(),
-            Value::Primitive(Primitive::PosInt(44)).into(),
+            Value::PosInt(42).into(),
+            Value::PosInt(43).into(),
+            Value::PosInt(44).into(),
         ]);
 
         let cell = ValueCell::from(value.clone());

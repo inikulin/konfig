@@ -8,7 +8,7 @@ pub mod value;
 pub mod ser;
 
 #[doc(inline)]
-pub use self::value::{Primitive, Value, ValueCell};
+pub use self::value::{Value, ValueCell};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]

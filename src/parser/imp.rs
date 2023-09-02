@@ -2,7 +2,7 @@ use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::insertion_point::InsertionPoint;
 use super::path_item::PathItem;
 use super::{Ast, ParsingMeta};
-use crate::value::{Primitive, Value, ValueCell};
+use crate::value::{Value, ValueCell};
 use pest_consume::{match_nodes, Parser as PestParser};
 
 pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
@@ -27,18 +27,18 @@ impl Parser {
     }
 
     pub(super) fn primitive(node: Node) -> ParseResult<ValueCell> {
-        Ok(Value::Primitive(match_nodes! {
+        Ok(match_nodes! {
             node.children();
-            [null(_)] => Primitive::Null,
-            [boolean(v)] => Primitive::Bool(v),
-            [pos_int(v)] => Primitive::PosInt(v),
-            [neg_int(v)] => Primitive::NegInt(v),
-            [float(v)] => Primitive::Float(v),
-            [single_quoted_string(v)] => Primitive::String(v),
-            [double_quoted_string(v)] => Primitive::String(v),
-            [raw_string(v)] => Primitive::String(v),
-            [enum_variant(v)] => Primitive::UnitVariant(v.to_string()),
-        })
+            [null(_)] => Value::Null,
+            [boolean(v)] => Value::Bool(v),
+            [pos_int(v)] => Value::PosInt(v),
+            [neg_int(v)] => Value::NegInt(v),
+            [float(v)] => Value::Float(v),
+            [single_quoted_string(v)] => Value::String(v),
+            [double_quoted_string(v)] => Value::String(v),
+            [raw_string(v)] => Value::String(v),
+            [enum_variant(v)] => Value::UnitVariant(v.to_string()),
+        }
         .into())
     }
 
