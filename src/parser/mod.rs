@@ -6,7 +6,7 @@ mod path_item;
 use self::error::{rename_rules, ParseError, ParseResult};
 use self::imp::{Node, Parser, Rule};
 use crate::error::{Error, Result};
-use crate::value::ValueCell;
+use crate::value::{Value, ValueCell};
 use pest::Span;
 use pest_consume::Parser as _;
 use std::cell::RefCell;
@@ -19,7 +19,7 @@ pub(crate) struct ParsingMeta {
     is_inline_seq: bool,
 }
 
-pub fn parse(input: &str) -> Result<ValueCell> {
+pub fn parse(input: &str) -> Result<Value> {
     let ast = Rc::new(RefCell::new(None));
 
     parse_rule(Rule::konfig, input, Rc::clone(&ast))
@@ -30,7 +30,7 @@ pub fn parse(input: &str) -> Result<ValueCell> {
 
     let mut ast_mut = ast.borrow_mut();
 
-    Ok(ast_mut.take().unwrap())
+    Ok(ast_mut.take().unwrap().into_value())
 }
 
 #[allow(clippy::result_large_err)]

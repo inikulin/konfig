@@ -1,6 +1,6 @@
 use indoc::indoc;
 use konfig::parser::parse;
-use konfig::value::{Value, ValueCell};
+use konfig::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,9 +22,12 @@ pub enum AstValue {
     UnitVariant(String),
 }
 
-impl From<ValueCell> for AstValue {
-    fn from(value: ValueCell) -> Self {
-        match Value::from(value) {
+impl<T> From<T> for AstValue
+where
+    T: Into<Value>,
+{
+    fn from(value: T) -> Self {
+        match value.into() {
             Value::Sequence(s) => AstValue::Sequence(s.into_iter().map(Into::into).collect()),
             Value::Map(m) => AstValue::Map(m.into_iter().map(|(k, v)| (k, v.into())).collect()),
             Value::Struct(s) => {
