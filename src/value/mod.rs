@@ -1,5 +1,11 @@
 mod conv;
 
+#[cfg(feature = "serde")]
+mod to_value;
+
+#[cfg(feature = "serde")]
+mod serde;
+
 use crate::parser::ParsingMeta;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -7,6 +13,9 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::rc::Rc;
+
+#[cfg(feature = "serde")]
+pub use self::to_value::{to_value, Serializer};
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub enum Value {

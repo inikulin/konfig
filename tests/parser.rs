@@ -15,8 +15,8 @@ pub enum AstValue {
     Variant(String, Box<AstValue>),
     Null,
     Bool(bool),
-    PosInt(u64),
-    NegInt(i64),
+    UInt(u64),
+    Int(i64),
     Float(f64),
     String(String),
     UnitVariant(String),
@@ -36,8 +36,8 @@ where
             Value::Variant(name, val) => AstValue::Variant(name, Box::new(val.into())),
             Value::Null => AstValue::Null,
             Value::Bool(v) => AstValue::Bool(v),
-            Value::UInt(v) => AstValue::PosInt(v),
-            Value::Int(v) => AstValue::NegInt(v),
+            Value::UInt(v) => AstValue::UInt(v),
+            Value::Int(v) => AstValue::Int(v),
             Value::Float(v) => AstValue::Float(v),
             Value::String(v) => AstValue::String(v),
             Value::UnitVariant(v) => AstValue::UnitVariant(v),
@@ -81,9 +81,9 @@ fn simple_assignment() {
                     "Baz",
                     Map({
                         "qux quz" : Sequence([
-                            PosInt(1),
-                            PosInt(2),
-                            PosInt(3)
+                            UInt(1),
+                            UInt(2),
+                            UInt(3)
                         ])
                     })
                 )
@@ -148,14 +148,14 @@ fn assignment_spacing() {
     ok! {
         ">foo=42" =>
         Struct({
-            "foo": PosInt(42)
+            "foo": UInt(42)
         })
     }
 
     ok! {
         "> foo      =      42" =>
         Struct({
-            "foo": PosInt(42)
+            "foo": UInt(42)
         })
     }
 
@@ -166,8 +166,8 @@ fn assignment_spacing() {
             > bar = 43
         " =>
         Struct({
-            "foo": PosInt(42),
-            "bar": PosInt(43)
+            "foo": UInt(42),
+            "bar": UInt(43)
         })
     }
 
@@ -177,8 +177,8 @@ fn assignment_spacing() {
 
             > bar = 43" =>
         Struct({
-            "foo": PosInt(42),
-            "bar": PosInt(43)
+            "foo": UInt(42),
+            "bar": UInt(43)
         })
     }
 
@@ -188,8 +188,8 @@ fn assignment_spacing() {
 
             > bar = 43  " =>
         Struct({
-            "foo": PosInt(42),
-            "bar": PosInt(43)
+            "foo": UInt(42),
+            "bar": UInt(43)
         })
     }
 
@@ -204,15 +204,15 @@ fn assignment_spacing() {
 
         " =>
         Struct({
-            "foo": PosInt(42),
-            "bar": PosInt(43)
+            "foo": UInt(42),
+            "bar": UInt(43)
         })
     }
 
     ok! {
         "> foo  \n =  42" =>
         Struct({
-            "foo": PosInt(42)
+            "foo": UInt(42)
         })
     }
 
@@ -347,28 +347,28 @@ fn sequence_of_primitives_spacing() {
             Float(1.3e+10),
             String("foo"),
             Bool(true),
-            PosInt(42),
+            UInt(42),
         ])
     }
 
     ok! {
         "> = [ 1\n  ]" =>
         Sequence([
-            PosInt(1),
+            UInt(1),
         ])
     }
 
     ok! {
         "> = [\n1]" =>
         Sequence([
-            PosInt(1),
+            UInt(1),
         ])
     }
 
     ok! {
         "> = [1,\n]" =>
         Sequence([
-            PosInt(1),
+            UInt(1),
         ])
     }
 
@@ -540,7 +540,7 @@ fn parse_rhs() {
             "seq_of_primitives": Sequence([
                 String("foo"),
                 String("bar"),
-                PosInt(1),
+                UInt(1),
                 Float(2.3e1),
                 Null
             ]),
@@ -550,10 +550,10 @@ fn parse_rhs() {
                 "false": Bool(false)
             }),
             "pos_int": Struct({
-                "dec": PosInt(42),
+                "dec": UInt(42),
                 "hex": Struct({
-                    "hi": PosInt(42),
-                    "lo": PosInt(42)
+                    "hi": UInt(42),
+                    "lo": UInt(42)
                 })
             }),
             "float": Sequence([
@@ -616,8 +616,8 @@ fn doc_and_expr_spacing() {
             123
         "} => 
         Struct({
-            "foo": PosInt(3),
-            "bar": PosInt(4)
+            "foo": UInt(3),
+            "bar": UInt(4)
         })
     }
 

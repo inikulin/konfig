@@ -24,7 +24,7 @@ pub(super) fn write_escaped_str(out: &mut String, v: &str) {
 }
 
 #[inline]
-pub(super) fn write_int(out: &mut String, v: impl itoa::Integer) {
+pub(crate) fn write_int(out: &mut String, v: impl itoa::Integer) {
     let mut buffer = itoa::Buffer::new();
 
     out.push_str(buffer.format(v));

@@ -12,6 +12,10 @@ pub use self::value::{Value, ValueCell};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
+pub use self::value::to_value;
+
+#[doc(inline)]
+#[cfg(feature = "serde")]
 pub use self::ser::{to_string, Serializer};
 
 #[doc(inline)]
