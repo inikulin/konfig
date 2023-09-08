@@ -25,4 +25,3 @@ impl serde::ser::Error for Error {
         Self::Custom(msg.to_string())
     }
 }
-

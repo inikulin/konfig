@@ -1,13 +1,29 @@
 use indoc::indoc;
 use konfig::error::Error;
+use konfig::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 macro_rules! ok {
-    ($rust:expr => $kfg:expr) => {
-        let serialized = konfig::to_string(&$rust).unwrap();
+    ($rust:expr => $kfg:expr $(, expected_to_value: $expected_to_value:expr)?) => {
+        assert_eq!(
+            konfig::to_string(&$rust),
+            Ok($kfg.to_string()),
+            "serialize Rust value"
+        );
 
-        assert_eq!(serialized, $kfg);
+        #[allow(unused_mut, unused_assignments)]
+        let mut expected_to_value = konfig::parse($kfg);
+
+        // NOTE: sometimes serialization and unhinted parsing are not roundtripable,
+        // e.g. serialized positive `i64` will be parsed as `u64`. For these cases we
+        // can't obtain expected `Value` by parsing seriazlied value with `konfig:parse`
+        // and need to use this hint instead.
+        $(
+            expected_to_value = Ok($expected_to_value);
+        )?
+
+        assert_eq!(konfig::to_value(&$rust), expected_to_value, "to_value");
     };
 }
 
@@ -43,35 +59,67 @@ fn bool_val() {
 
 #[test]
 fn i8_val() {
-    ok! { 42i8 => "> = 42" }
+    ok! {
+        42i8 => "> = 42",
+        expected_to_value: Value::Int(42)
+    }
+
     ok! { -42i8 => "> = -42" }
     ok! { i8::MIN => "> = -128" }
-    ok! { i8::MAX => "> = 127" }
+
+    ok! {
+        i8::MAX => "> = 127",
+        expected_to_value: Value::Int(127)
+    }
 }
 
 #[test]
 fn i16_val() {
-    ok! { 42i16 => "> = 42" }
+    ok! {
+        42i16 => "> = 42",
+        expected_to_value: Value::Int(42)
+    }
+
     ok! { -42i16 => "> = -42" }
     ok! { i16::MIN => "> = -32768" }
-    ok! { i16::MAX => "> = 32767" }
+
+    ok! {
+        i16::MAX => "> = 32767",
+        expected_to_value: Value::Int(32767)
+    }
 }
 
 #[test]
 fn i32_val() {
-    ok! { 42i32 => "> = 42" }
+    ok! {
+        42i32 => "> = 42",
+        expected_to_value: Value::Int(42)
+    }
+
     ok! { -42i32 => "> = -42" }
     ok! { i32::MIN => "> = -2147483648" }
-    ok! { i32::MAX => "> = 2147483647" }
+
+    ok! {
+        i32::MAX => "> = 2147483647",
+        expected_to_value: Value::Int(2147483647)
+    }
 }
 
 #[test]
 fn i64_val() {
-    ok! { 3i64 => "> = 3" }
+    ok! {
+        3i64 => "> = 3",
+        expected_to_value: Value::Int(3)
+    }
+
     ok! { -2i64 => "> = -2" }
     ok! { -1234i64 => "> = -1234" }
     ok! { i64::MIN => "> = -9223372036854775808" }
-    ok! { i64::MAX => "> = 9223372036854775807" }
+
+    ok! {
+        i64::MAX => "> = 9223372036854775807",
+        expected_to_value: Value::Int(9223372036854775807)
+    }
 }
 
 #[test]
@@ -115,15 +163,41 @@ fn u128_val() {
 #[test]
 fn f32_val() {
     ok! { 3.0f32 => "> = 3.0" }
-    ok! { 3.1f32 => "> = 3.1" }
+
+    ok! {
+        3.1f32 => "> = 3.1",
+        expected_to_value: Value::Float(3.1f32.into())
+    }
+
     ok! { -1.5f32 => "> = -1.5" }
-    ok! { 0.5f32 => "> = 0.5" }
-    ok! { 0.5e-3f32 => "> = 0.0005" }
+
+    ok! {
+        0.5f32 => "> = 0.5",
+        expected_to_value: Value::Float(0.5f32.into())
+    }
+
+    ok! {
+        0.5e-3f32 => "> = 0.0005",
+        expected_to_value: Value::Float(0.0005f32.into())
+    }
+
     ok! { 0.5e+3f32 => "> = 500.0" }
     ok! { 0f32 => "> = 0.0" }
-    ok! { f32::MIN => "> = -3.4028235e38" }
-    ok! { f32::MAX => "> = 3.4028235e38" }
-    ok! { f32::EPSILON => "> = 1.1920929e-7" }
+
+    ok! {
+        f32::MIN => "> = -3.4028235e38",
+        expected_to_value: Value::Float(f32::MIN.into())
+    }
+
+    ok! {
+        f32::MAX => "> = 3.4028235e38",
+        expected_to_value: Value::Float(f32::MAX.into())
+    }
+
+    ok! {
+        f32::EPSILON => "> = 1.1920929e-7",
+        expected_to_value: Value::Float(f32::EPSILON.into())
+    }
 
     ser_err! { f32::INFINITY => Error::InfAndNanNotSupported }
     ser_err! { f32::NEG_INFINITY => Error::InfAndNanNotSupported }
@@ -159,15 +233,16 @@ fn char_val() {
     ok! { '\n' => "> = \"\\n\"" }
     ok! { '\r' => "> = \"\\r\"" }
     ok! { '\t' => "> = \"\\t\"" }
-    ok! { '\x0B' => "> = \"\\u000b\"" }
+    ok! { '\x0B' => "> = \"\\u00000b\"" }
     ok! { '\u{3A3}' => "> = \"\u{3A3}\"" }
+    ok! { '\u{0}' => "> = \"\\u000000\"" }
 }
 
 #[test]
 fn str_val() {
     ok! { "" => r#"> = """# }
     ok! { "foo" => r#"> = "foo""# }
-    ok! { "foo\nbar\u{1}b" => r#"> = "foo\nbar\u0001b""# }
+    ok! { "foo\nbar\u{1}b" => r#"> = "foo\nbar\u000001b""# }
 }
 
 #[test]
@@ -252,7 +327,7 @@ fn seq_val() {
     }
 
     ok! {
-        vec![1, 2, 3, 4, 5] => indoc! {"
+        vec![1u8, 2, 3, 4, 5] => indoc! {"
             > = [1, 2, 3, 4, 5]\
         "}
     }
@@ -268,7 +343,7 @@ fn seq_val() {
     }
 
     ok! {
-        vec![vec![1, 2, 3], vec![], vec![]] => indoc! {"
+        vec![vec![1u8, 2, 3], vec![], vec![]] => indoc! {"
             > [0] = [1, 2, 3]
 
             > [1] = []
@@ -278,7 +353,7 @@ fn seq_val() {
     }
 
     ok! {
-        vec![vec![], vec![1, 2, 3], vec![]] => indoc! {"
+        vec![vec![], vec![1u8, 2, 3], vec![]] => indoc! {"
             > [0] = []
 
             > [1] = [1, 2, 3]
@@ -288,7 +363,7 @@ fn seq_val() {
     }
 
     ok! {
-        vec![vec![], vec![], vec![1, 2, 3]] => indoc! {"
+        vec![vec![], vec![], vec![1u8, 2, 3]] => indoc! {"
             > [0] = []
 
             > [1] = []
@@ -308,7 +383,7 @@ fn seq_val() {
     }
 
     // NOTE: primitive value checker can't see into erased values, so we serialize those as compound
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(vec![43])];
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42u8), Box::new(vec![43u8])];
 
     ok! {
         list => indoc! {"
@@ -318,7 +393,7 @@ fn seq_val() {
         "}
     }
 
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(43)];
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42u8), Box::new(43u8)];
 
     ok! {
         list => indoc! {"
@@ -360,7 +435,7 @@ fn tuple_val() {
     }
 
     ok! {
-        (5, (), 7, (6, "abc"), true, vec![42u8]) => indoc! {"
+        (5u64, (), 7u64, (6u64, "abc"), true, vec![42u8]) => indoc! {"
             > [0] = 5
 
             > [1] = null
@@ -376,11 +451,11 @@ fn tuple_val() {
     }
 
     ok! {
-        (5,) => "> = [5]"
+        (5u8,) => "> = [5]"
     }
 
     ok! {
-        (5, true, Variant::Unit) => "> = [5, true, `Unit`]"
+        (5u64, true, Variant::Unit) => "> = [5, true, `Unit`]"
     }
 
     ok! {
@@ -414,7 +489,7 @@ fn tuple_struct_val() {
     struct Tuple2(u16, u32);
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    struct Tuple3(i32, bool, Variant);
+    struct Tuple3(u32, bool, Variant);
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     struct Tuple4(Variant, Variant, Variant);
@@ -535,7 +610,7 @@ fn map_val() {
 
     ok! {
         map![
-            "a" => map!["a" => vec![1, 2, 3], "b" => vec![]],
+            "a" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]],
             "b" => map!["a" => vec![]],
             "c" => map!["a" => vec![]]
         ] => indoc! {"
@@ -552,7 +627,7 @@ fn map_val() {
     ok! {
         map![
             "a" => map!["a" => vec![]],
-            "b" => map!["a" => vec![1, 2, 3], "b" => vec![]],
+            "b" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]],
             "c" => map!["a" => vec![]]
         ] => indoc! {"
             > [\"a\"] > [\"a\"] = []
@@ -569,7 +644,7 @@ fn map_val() {
         map![
             "abc xyz" => map!["42" => vec![]],
             "bc xyz" => map!["Hello world!" => vec![]],
-            "c xyz" => map!["a" => vec![1, 2, 3], "b" => vec![]]
+            "c xyz" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]]
         ] => indoc! {"
             > [\"abc xyz\"] > [\"42\"] = []
 
@@ -594,7 +669,7 @@ fn map_val() {
             map!["c" => "\x0c\x1f\r"],
             map!["d" => ""]
         ]] => indoc!{"
-            > [\"b\"] > [0] > [\"c\"] = \"\\f\\u001f\\r\"
+            > [\"b\"] > [0] > [\"c\"] = \"\\f\\u00001f\\r\"
 
             > [\"b\"] > [1] > [\"d\"] = \"\"\
         "}
@@ -630,8 +705,8 @@ fn struct_val() {
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     struct Floats {
-        small: f32,
-        big: f64,
+        first: f64,
+        second: f64,
     }
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -646,8 +721,8 @@ fn struct_val() {
                 neg: -1337,
             },
             some_floats: Floats {
-                small: 3.14,
-                big: 42.42,
+                first: 3.14,
+                second: 42.42,
             },
             string: NewtypeString("hello".into()),
         } => indoc!{"
@@ -659,9 +734,9 @@ fn struct_val() {
 
             > different_ints > neg = -1337
 
-            > some_floats > small = 3.14
+            > some_floats > first = 3.14
 
-            > some_floats > big = 42.42
+            > some_floats > second = 42.42
 
             > string = \"hello\"\
         "}

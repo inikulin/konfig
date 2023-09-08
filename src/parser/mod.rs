@@ -172,7 +172,7 @@ mod tests {
     fn parse_double_quoted_string() {
         ok! { double_quoted_string r#""""# => "".to_string() }
         ok! { double_quoted_string r#""foobar baz  qux""# => "foobar baz  qux".to_string() }
-        ok! { double_quoted_string r#""foo \u41\u0042 bar\u00004300""# => "foo AB barC00".to_string() }
+        ok! { double_quoted_string r#""foo \u000041\u000042 bar\u00004300""# => "foo AB barC00".to_string() }
 
         ok! {
             double_quoted_string r#""\n foo \t\r \\ baz \" bar \\n""#  =>
@@ -190,7 +190,7 @@ mod tests {
         }
 
         ok! {
-            double_quoted_string r#"" foo \u2764 \u23F0 bar \u1f33a \n""# =>
+            double_quoted_string r#"" foo \u002764 \u0023F0 bar \u01f33a \n""# =>
             " foo ❤ ⏰ bar 🌺 \n".to_string()
         }
 
@@ -330,7 +330,7 @@ mod tests {
     fn parse_single_quoted_string() {
         ok! { single_quoted_string r#"''"# => "".to_string() }
         ok! { single_quoted_string r#"'foobar baz  qux'"# => "foobar baz  qux".to_string() }
-        ok! { single_quoted_string r#"'foo \u41\u0042 bar\u00004300'"# => "foo AB barC00".to_string() }
+        ok! { single_quoted_string r#"'foo \u000041\u000042 bar\u00004300'"# => "foo AB barC00".to_string() }
 
         ok! {
             single_quoted_string r#"'\n foo \t\r \\ baz \" bar \\n'"#  =>
@@ -348,7 +348,7 @@ mod tests {
         }
 
         ok! {
-            single_quoted_string r#"' foo \u2764 \u23F0 bar \u1f33a \n'"# =>
+            single_quoted_string r#"' foo \u002764 \u0023F0 bar \u01f33a \n'"# =>
             " foo ❤ ⏰ bar 🌺 \n".to_string()
         }
 
@@ -581,10 +581,10 @@ mod tests {
     #[test]
     fn parse_map_key() {
         ok! { map_key r#"["foobar baz  qux"]"# => "foobar baz  qux".to_string() }
-        ok! { map_key r#"[  "foo \u41\u0042 bar\u00004300"  ]"# => "foo AB barC00".to_string() }
+        ok! { map_key r#"[  "foo \u000041\u000042 bar\u00004300"  ]"# => "foo AB barC00".to_string() }
 
         ok! { map_key r#"['foobar baz  qux']"# => "foobar baz  qux".to_string() }
-        ok! { map_key r#"[  'foo \u41\u0042 bar\u00004300'  ]"# => "foo AB barC00".to_string() }
+        ok! { map_key r#"[  'foo \u000041\u000042 bar\u00004300'  ]"# => "foo AB barC00".to_string() }
 
         err! { map_key "[foobar]" =>
             " --> 1:2

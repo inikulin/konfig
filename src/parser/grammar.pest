@@ -81,7 +81,7 @@ raw_string_lang_ident = _{ ( ASCII_ALPHANUMERIC | "_" )+ }
 
 esc = ${ "\\" ~ ( esc_alias | ( "u" ~ esc_unicode ) ) }
 esc_alias = { "\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t" }
-esc_unicode = { ASCII_HEX_DIGIT{1, 6} }
+esc_unicode = { ASCII_HEX_DIGIT{6} }
 
 
 // Spacing

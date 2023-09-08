@@ -358,7 +358,8 @@ impl serde::ser::SerializeStruct for ValueMapSerializer {
     where
         T: ?Sized + Serialize,
     {
-        serde::ser::SerializeMap::serialize_key(self, key)?;
+        self.next_key = Some(key.to_string());
+
         serde::ser::SerializeMap::serialize_value(self, value)
     }
 

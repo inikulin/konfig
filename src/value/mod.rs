@@ -9,6 +9,7 @@ mod serde;
 use crate::parser::ParsingMeta;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::fmt;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
@@ -60,7 +61,6 @@ pub(super) struct ValueCellInternal {
     pub(super) parsing_meta: ParsingMeta,
 }
 
-#[derive(Debug)]
 pub struct ValueCell(Rc<RefCell<ValueCellInternal>>);
 
 impl ValueCell {
@@ -103,6 +103,12 @@ impl Deref for ValueCell {
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
         // parsing is complete.
         &unsafe { &*self.0.as_ptr() }.value
+    }
+}
+
+impl fmt::Debug for ValueCell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (**self).fmt(f)
     }
 }
 
