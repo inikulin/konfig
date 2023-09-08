@@ -10,7 +10,7 @@
 
 > values > `Array` > [1] > `String` = "two"
 
-> values > `Array` > [2] > `Float` = 3.140000104904175
+> values > `Array` > [2] > `Float` = 3.14
 
 > properties > properties > ["prop1"] > name = "prop1"
 
@@ -30,7 +30,7 @@
 
 > numbers = [1, 2, 3]
 
-> float = 3.1414999961853027
+> float = 3.1415
 
 > string = "rust is awesome"
 

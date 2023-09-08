@@ -87,7 +87,11 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_f64(self, v: f64) -> Result<Value> {
-        Ok(Value::Float(v))
+        if v.is_finite() {
+            Ok(Value::Float(v))
+        } else {
+            Err(Error::InfAndNanNotSupported)
+        }
     }
 
     #[inline]

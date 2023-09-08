@@ -11,11 +11,15 @@ macro_rules! ok {
     };
 }
 
-macro_rules! err {
+macro_rules! ser_err {
     ($rust:expr => $err:expr) => {
-        let err = konfig::to_string(&$rust).unwrap_err();
+        assert_eq!(
+            konfig::to_string(&$rust),
+            Err($err),
+            "serialization should error"
+        );
 
-        assert_eq!(err, $err);
+        assert_eq!(konfig::to_value(&$rust), Err($err), "to_value should error");
     };
 }
 
@@ -32,15 +36,33 @@ macro_rules! map {
 }
 
 #[test]
-fn none_val() {
-    ok! { () => "> = null" }
-    ok! { None::<u8> => "> = null" }
+fn bool_val() {
+    ok! { true => "> = true" }
+    ok! { false => "> = false" }
 }
 
 #[test]
-fn u64_val() {
-    ok! { 3u64 => "> = 3" }
-    ok! { u64::MAX => format!("> = {}", u64::MAX) }
+fn i8_val() {
+    ok! { 42i8 => "> = 42" }
+    ok! { -42i8 => "> = -42" }
+    ok! { i8::MIN => "> = -128" }
+    ok! { i8::MAX => "> = 127" }
+}
+
+#[test]
+fn i16_val() {
+    ok! { 42i16 => "> = 42" }
+    ok! { -42i16 => "> = -42" }
+    ok! { i16::MIN => "> = -32768" }
+    ok! { i16::MAX => "> = 32767" }
+}
+
+#[test]
+fn i32_val() {
+    ok! { 42i32 => "> = 42" }
+    ok! { -42i32 => "> = -42" }
+    ok! { i32::MIN => "> = -2147483648" }
+    ok! { i32::MAX => "> = 2147483647" }
 }
 
 #[test]
@@ -48,38 +70,82 @@ fn i64_val() {
     ok! { 3i64 => "> = 3" }
     ok! { -2i64 => "> = -2" }
     ok! { -1234i64 => "> = -1234" }
-    ok! { i64::MIN => format!("> = {}", i64::MIN) }
+    ok! { i64::MIN => "> = -9223372036854775808" }
+    ok! { i64::MAX => "> = 9223372036854775807" }
+}
+
+#[test]
+fn i128_val() {
+    ser_err! { 0i128 => Error::Int128NotSupported }
+}
+
+#[test]
+fn u8_val() {
+    ok! { 42u8 => "> = 42" }
+    ok! { u8::MIN => "> = 0" }
+    ok! { u8::MAX => "> = 255" }
+}
+
+#[test]
+fn u16_val() {
+    ok! { 42u16 => "> = 42" }
+    ok! { u16::MIN => "> = 0" }
+    ok! { u16::MAX => "> = 65535" }
+}
+
+#[test]
+fn u32_val() {
+    ok! { 1337u32 => "> = 1337" }
+    ok! { u32::MIN => "> = 0" }
+    ok! { u32::MAX => "> = 4294967295" }
+}
+
+#[test]
+fn u64_val() {
+    ok! { 1337u64 => "> = 1337" }
+    ok! { u64::MIN => "> = 0" }
+    ok! { u64::MAX => "> = 18446744073709551615" }
+}
+
+#[test]
+fn u128_val() {
+    ser_err! { 0u128 => Error::Int128NotSupported }
+}
+
+#[test]
+fn f32_val() {
+    ok! { 3.0f32 => "> = 3.0" }
+    ok! { 3.1f32 => "> = 3.1" }
+    ok! { -1.5f32 => "> = -1.5" }
+    ok! { 0.5f32 => "> = 0.5" }
+    ok! { 0.5e-3f32 => "> = 0.0005" }
+    ok! { 0.5e+3f32 => "> = 500.0" }
+    ok! { 0f32 => "> = 0.0" }
+    ok! { f32::MIN => "> = -3.4028235e38" }
+    ok! { f32::MAX => "> = 3.4028235e38" }
+    ok! { f32::EPSILON => "> = 1.1920929e-7" }
+
+    ser_err! { f32::INFINITY => Error::InfAndNanNotSupported }
+    ser_err! { f32::NEG_INFINITY => Error::InfAndNanNotSupported }
+    ser_err! { f32::NAN => Error::InfAndNanNotSupported }
 }
 
 #[test]
 fn f64_val() {
-    ok! { 3.0 => "> = 3.0" }
-    ok! { 3.1 => "> = 3.1" }
-    ok! { -1.5 => "> = -1.5" }
-    ok! { 0.5 => "> = 0.5" }
-    ok! { 0.5 => "> = 0.5" }
+    ok! { 3.0f64 => "> = 3.0" }
+    ok! { 3.1f64 => "> = 3.1" }
+    ok! { -1.5f64 => "> = -1.5" }
+    ok! { 0.5f64 => "> = 0.5" }
+    ok! { 0.5e-3f64 => "> = 0.0005" }
+    ok! { 0.5e+3f64 => "> = 500.0" }
+    ok! { 0f64 => "> = 0.0" }
     ok! { f64::MIN => "> = -1.7976931348623157e308" }
     ok! { f64::MAX => "> = 1.7976931348623157e308" }
     ok! { f64::EPSILON => "> = 2.220446049250313e-16" }
-}
 
-#[test]
-fn ints128_val() {
-    err! { 0u128 => Error::Int128NotSupported }
-    err! { 0i128 => Error::Int128NotSupported }
-}
-
-#[test]
-fn str_val() {
-    ok! { "" => r#"> = """# }
-    ok! { "foo" => r#"> = "foo""# }
-    ok! { "foo\nbar\u{1}b" => r#"> = "foo\nbar\u0001b""# }
-}
-
-#[test]
-fn bool_val() {
-    ok! { true => "> = true" }
-    ok! { false => "> = false" }
+    ser_err! { f64::INFINITY => Error::InfAndNanNotSupported }
+    ser_err! { f64::NEG_INFINITY => Error::InfAndNanNotSupported }
+    ser_err! { f64::NAN => Error::InfAndNanNotSupported }
 }
 
 #[test]
@@ -98,14 +164,85 @@ fn char_val() {
 }
 
 #[test]
-fn bytes_val() {
+fn str_val() {
+    ok! { "" => r#"> = """# }
+    ok! { "foo" => r#"> = "foo""# }
+    ok! { "foo\nbar\u{1}b" => r#"> = "foo\nbar\u0001b""# }
+}
+
+#[test]
+fn none_val() {
+    ok! { None::<u8> => "> = null" }
+}
+
+#[test]
+fn some_val() {
+    ok! { Some(42u64) => "> = 42" }
+}
+
+#[test]
+fn unit_val() {
+    ok! { () => "> = null" }
+}
+
+#[test]
+fn unit_struct_val() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct FooBar;
+
+    ok! { FooBar => "> = null" }
+}
+
+#[test]
+fn unit_variant_val() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    enum UnitValEnum {
+        UnitVariant,
+    }
+
+    ok! { UnitValEnum::UnitVariant => "> = `UnitVariant`" }
+}
+
+#[test]
+fn newtype_struct_val() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct NewtypeStruct(Vec<u8>);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct WithNestedNewtypeStruct(NewtypeStruct);
+
+    ok! { NewtypeStruct(vec![1,2,3]) => "> = [1, 2, 3]" };
+
+    ok! { WithNestedNewtypeStruct(NewtypeStruct(vec![1,2,3])) => "> = [1, 2, 3]" };
+}
+
+#[test]
+fn newtype_variant_val() {
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct NewtypeStruct(Vec<u8>);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum NewTypeEnum1 {
+        Enum1Variant(NewtypeStruct),
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum NewTypeEnum2 {
+        Enum2Variant(NewTypeEnum1),
+    }
+
     ok! {
-        std::ffi::CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
+        NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])) => "> `Enum1Variant` = [1, 2, 3]"
+    }
+
+    ok! {
+        NewTypeEnum2::Enum2Variant(NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3]))) =>
+        "> `Enum2Variant` > `Enum1Variant` = [1, 2, 3]"
     }
 }
 
 #[test]
-fn list_val() {
+fn seq_val() {
     ok! { vec![true] => "> = [true]" }
 
     ok! {
@@ -169,10 +306,28 @@ fn list_val() {
             > [2] = [\"foo\\nbar\", \"3.5\"]\
         "}
     }
-}
 
-#[test]
-fn list_of_enums() {
+    // NOTE: primitive value checker can't see into erased values, so we serialize those as compound
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(vec![43])];
+
+    ok! {
+        list => indoc! {"
+                > [0] = 42
+    
+                > [1] > [0] = 43\
+        "}
+    }
+
+    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(43)];
+
+    ok! {
+        list => indoc! {"
+                > [0] = 42
+    
+                > [1] = 43\
+        "}
+    }
+
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     enum Variant {
         Primitive(usize),
@@ -189,31 +344,14 @@ fn list_of_enums() {
 }
 
 #[test]
-fn list_of_dynamics() {
-    // NOTE: primitive value checker can't see into erased values, so we serialize those as compound
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(vec![43])];
-
+fn bytes_val() {
     ok! {
-        list => indoc! {"
-            > [0] = 42
-
-            > [1] > [0] = 43\
-        "}
-    }
-
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42), Box::new(43)];
-
-    ok! {
-        list => indoc! {"
-            > [0] = 42
-
-            > [1] = 43\
-        "}
+        std::ffi::CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
     }
 }
 
 #[test]
-fn tuple_value() {
+fn tuple_val() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     enum Variant {
         Unit,
@@ -261,7 +399,7 @@ fn tuple_value() {
 }
 
 #[test]
-fn tuple_struct_value() {
+fn tuple_struct_val() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     enum Variant {
         Unit,
@@ -271,6 +409,18 @@ fn tuple_struct_value() {
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     struct Tuple1(usize, (), u8, (usize, String), bool, Vec<u8>);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple2(u16, u32);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple3(i32, bool, Variant);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple4(Variant, Variant, Variant);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Tuple5(String, Tuple2, Tuple3);
 
     ok! {
         Tuple1(5, (), 7, (6, "abc".to_string()), true, vec![42u8]) => indoc! {"
@@ -288,22 +438,13 @@ fn tuple_struct_value() {
         "}
     }
 
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    struct Tuple2(u16, u32);
-
     ok! {
         Tuple2(5, 6) => "> = [5, 6]"
     }
 
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    struct Tuple3(i32, bool, Variant);
-
     ok! {
         Tuple3(5, true, Variant::Unit) => "> = [5, true, `Unit`]"
     }
-
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    struct Tuple4(Variant, Variant, Variant);
 
     ok! {
         Tuple4(
@@ -318,9 +459,6 @@ fn tuple_struct_value() {
             > [2] > `Vec` = [1, 2, 3]\
         "}
     }
-
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    struct Tuple5(String, Tuple2, Tuple3);
 
     ok! {
         Tuple5(
@@ -342,7 +480,7 @@ fn tuple_struct_value() {
 }
 
 #[test]
-fn tuple_enum_variant_value() {
+fn tuple_variant_val() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     enum Variant {
         Tuple1(usize, (), u8, (usize, String), bool, Vec<u8>),
@@ -372,48 +510,7 @@ fn tuple_enum_variant_value() {
 }
 
 #[test]
-fn struct_enum_variant() {
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    enum Variant {
-        Struct1 {
-            usize_field: usize,
-            vec_field: Vec<usize>,
-            tuple_field: (usize, String, Vec<usize>),
-        },
-        Struct2 {
-            str_field: &'static str,
-        },
-    }
-
-    ok! {
-        vec![
-            Variant::Struct1 {
-                usize_field: 42,
-                vec_field: vec![43, 44],
-                tuple_field: (45, "Hello".into(), vec![46, 47, 48])
-            },
-            Variant::Struct2 {
-                str_field: "World"
-            }
-
-        ] => indoc! {"
-            > [0] > `Struct1` > usize_field = 42
-
-            > [0] > `Struct1` > vec_field = [43, 44]
-
-            > [0] > `Struct1` > tuple_field > [0] = 45
-
-            > [0] > `Struct1` > tuple_field > [1] = \"Hello\"
-
-            > [0] > `Struct1` > tuple_field > [2] = [46, 47, 48]
-
-            > [1] > `Struct2` > str_field = \"World\"\
-        "}
-    }
-}
-
-#[test]
-fn map_value() {
+fn map_val() {
     ok! {
         map!["a" => true] => "> [\"a\"] = true"
     }
@@ -515,71 +612,99 @@ fn map_value() {
 }
 
 #[test]
-fn enum_value() {
+fn struct_val() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    #[serde(deny_unknown_fields)]
-    enum Animal {
-        Dog,
-        Frog(String, Vec<isize>),
-        Cat { age: usize, name: String },
-        AntHive(Vec<String>),
+    struct Struct {
+        null: (),
+        boolean: bool,
+        different_ints: Ints,
+        some_floats: Floats,
+        string: NewtypeString,
     }
 
-    ok! { Animal::Dog => "> = `Dog`" };
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Ints {
+        pos: u64,
+        neg: i64,
+    }
 
-    ok!(
-        Animal::Frog("Henry".to_string(), vec![]) => indoc!{"
-            > `Frog` > [0] = \"Henry\"
-        
-            > `Frog` > [1] = []\
-        "}
-    );
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Floats {
+        small: f32,
+        big: f64,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct NewtypeString(String);
 
     ok! {
-        Animal::Cat {
-            age: 5,
-            name: "Kate".to_string(),
+        Struct {
+            null: (),
+            boolean: true,
+            different_ints: Ints {
+                pos: 42,
+                neg: -1337,
+            },
+            some_floats: Floats {
+                small: 3.14,
+                big: 42.42,
+            },
+            string: NewtypeString("hello".into()),
         } => indoc!{"
-            > `Cat` > age = 5
+            > null = null
 
-            > `Cat` > name = \"Kate\"\
+            > boolean = true
+
+            > different_ints > pos = 42
+
+            > different_ints > neg = -1337
+
+            > some_floats > small = 3.14
+
+            > some_floats > big = 42.42
+
+            > string = \"hello\"\
         "}
-    };
-
-    ok! {
-        Animal::AntHive(vec!["Bob".to_string(), "Stuart".to_string()]) =>
-        "> `AntHive` = [\"Bob\", \"Stuart\"]"
-    };
+    }
 }
 
 #[test]
-fn newtype_struct_and_variant() {
+fn struct_variant_val() {
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub struct NewtypeStruct(Vec<u8>);
-
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub struct WithNestedNewtypeStruct(NewtypeStruct);
-
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub enum NewTypeEnum1 {
-        Enum1Variant(NewtypeStruct),
+    enum Variant {
+        Struct1 {
+            usize_field: usize,
+            vec_field: Vec<usize>,
+            tuple_field: (usize, String, Vec<usize>),
+        },
+        Struct2 {
+            str_field: &'static str,
+        },
     }
 
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub enum NewTypeEnum2 {
-        Enum2Variant(NewTypeEnum1),
+    ok! {
+        vec![
+            Variant::Struct1 {
+                usize_field: 42,
+                vec_field: vec![43, 44],
+                tuple_field: (45, "Hello".into(), vec![46, 47, 48])
+            },
+            Variant::Struct2 {
+                str_field: "World"
+            }
+
+        ] => indoc! {"
+            > [0] > `Struct1` > usize_field = 42
+
+            > [0] > `Struct1` > vec_field = [43, 44]
+
+            > [0] > `Struct1` > tuple_field > [0] = 45
+
+            > [0] > `Struct1` > tuple_field > [1] = \"Hello\"
+
+            > [0] > `Struct1` > tuple_field > [2] = [46, 47, 48]
+
+            > [1] > `Struct2` > str_field = \"World\"\
+        "}
     }
-
-    ok! { NewtypeStruct(vec![1,2,3]) => "> = [1, 2, 3]" };
-
-    ok! { WithNestedNewtypeStruct(NewtypeStruct(vec![1,2,3])) => "> = [1, 2, 3]" };
-
-    ok! {
-        NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3])) => "> `Enum1Variant` = [1, 2, 3]"
-    };
-
-    ok! {
-        NewTypeEnum2::Enum2Variant(NewTypeEnum1::Enum1Variant(NewtypeStruct(vec![1,2,3]))) =>
-        "> `Enum2Variant` > `Enum1Variant` = [1, 2, 3]"
-    };
 }

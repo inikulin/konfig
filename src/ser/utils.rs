@@ -1,4 +1,22 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
+
+pub(super) trait Float: ryu::Float {
+    fn is_finite(self) -> bool;
+}
+
+impl Float for f32 {
+    #[inline]
+    fn is_finite(self) -> bool {
+        f32::is_finite(self)
+    }
+}
+
+impl Float for f64 {
+    #[inline]
+    fn is_finite(self) -> bool {
+        f64::is_finite(self)
+    }
+}
 
 pub(super) fn write_escaped_str(out: &mut String, v: &str) {
     let mut start = 0;
@@ -30,11 +48,16 @@ pub(crate) fn write_int(out: &mut String, v: impl itoa::Integer) {
     out.push_str(buffer.format(v));
 }
 
-#[inline]
-pub(super) fn write_float(out: &mut String, v: impl ryu::Float) {
+pub(super) fn write_float(out: &mut String, v: impl Float) -> Result<()> {
+    if !v.is_finite() {
+        return Err(Error::InfAndNanNotSupported);
+    }
+
     let mut buffer = ryu::Buffer::new();
 
-    out.push_str(buffer.format(v));
+    out.push_str(buffer.format_finite(v));
+
+    Ok(())
 }
 
 pub(super) fn make_map_key(

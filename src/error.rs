@@ -8,6 +8,8 @@ pub enum Error {
     InvalidMapKeyType,
     #[error("128-bit integers are not supported")]
     Int128NotSupported,
+    #[error("infinite and NaN floating point numbers are not supported")]
+    InfAndNanNotSupported,
     #[error("{0}")]
     Parsing(ParseError),
     #[error("{0}")]
@@ -23,3 +25,4 @@ impl serde::ser::Error for Error {
         Self::Custom(msg.to_string())
     }
 }
+

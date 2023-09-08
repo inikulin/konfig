@@ -1,4 +1,5 @@
 use super::Value;
+use crate::Error;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -79,8 +80,12 @@ impl<'de> serde::de::Visitor<'de> for ValueVisitor {
     }
 
     #[inline]
-    fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E> {
-        Ok(Value::Float(v))
+    fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<Self::Value, E> {
+        if v.is_finite() {
+            Ok(Value::Float(v))
+        } else {
+            Err(serde::de::Error::custom(Error::InfAndNanNotSupported))
+        }
     }
 
     #[inline]

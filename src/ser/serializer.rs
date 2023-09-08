@@ -125,14 +125,18 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         Err(Error::Int128NotSupported)
     }
 
-    #[inline]
     fn serialize_f32(self, v: f32) -> Result<()> {
-        self.serialize_f64(v.into())
+        // NOTE: we intentionally don't deligate to `serialize_f64` as conversion to f64
+        // causes precision artifacts.
+        self.serialize_path();
+        utils::write_float(self.out, v)?;
+
+        Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         self.serialize_path();
-        utils::write_float(self.out, v);
+        utils::write_float(self.out, v)?;
 
         Ok(())
     }
@@ -154,6 +158,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         self.serialize_unit()
     }
 
+    #[inline]
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
