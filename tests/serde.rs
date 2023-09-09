@@ -27,6 +27,7 @@ macro_rules! ok {
 
         assert_eq!(value, expected_to_value, "to_value");
         assert_eq!(konfig::from_value(value.unwrap()), Ok($rust), "from_value");
+        assert_eq!(konfig::from_str($kfg), Ok($rust), "deserialize to Rust value");
     };
 }
 
