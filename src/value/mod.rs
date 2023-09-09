@@ -4,6 +4,9 @@ mod conv;
 mod to_value;
 
 #[cfg(feature = "serde")]
+mod from_value;
+
+#[cfg(feature = "serde")]
 mod serde;
 
 use crate::parser::ParsingMeta;
@@ -17,6 +20,9 @@ use std::rc::Rc;
 
 #[cfg(feature = "serde")]
 pub use self::to_value::{to_value, Serializer};
+
+#[cfg(feature = "serde")]
+pub use self::from_value::from_value;
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub enum Value {

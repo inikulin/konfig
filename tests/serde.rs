@@ -23,7 +23,10 @@ macro_rules! ok {
             expected_to_value = Ok($expected_to_value);
         )?
 
-        assert_eq!(konfig::to_value(&$rust), expected_to_value, "to_value");
+        let value = konfig::to_value(&$rust);
+
+        assert_eq!(value, expected_to_value, "to_value");
+        assert_eq!(konfig::from_value(value.unwrap()), Ok($rust), "from_value");
     };
 }
 
@@ -240,9 +243,9 @@ fn char_val() {
 
 #[test]
 fn str_val() {
-    ok! { "" => r#"> = """# }
-    ok! { "foo" => r#"> = "foo""# }
-    ok! { "foo\nbar\u{1}b" => r#"> = "foo\nbar\u000001b""# }
+    ok! { "".to_string() => r#"> = """# }
+    ok! { "foo".to_string() => r#"> = "foo""# }
+    ok! { "foo\nbar\u{1}b".to_string() => r#"> = "foo\nbar\u000001b""# }
 }
 
 #[test]
@@ -373,33 +376,16 @@ fn seq_val() {
     }
 
     ok! {
-        vec![vec!["false"], vec![], vec!["foo\nbar", "3.5"]] => indoc! {"
+        vec![
+            vec!["false".to_string()],
+            vec![],
+            vec!["foo\nbar".to_string(), "3.5".to_string()]
+        ] => indoc! {"
             > [0] = [\"false\"]
 
             > [1] = []
 
             > [2] = [\"foo\\nbar\", \"3.5\"]\
-        "}
-    }
-
-    // NOTE: primitive value checker can't see into erased values, so we serialize those as compound
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42u8), Box::new(vec![43u8])];
-
-    ok! {
-        list => indoc! {"
-                > [0] = 42
-    
-                > [1] > [0] = 43\
-        "}
-    }
-
-    let list: Vec<Box<dyn erased_serde::Serialize>> = vec![Box::new(42u8), Box::new(43u8)];
-
-    ok! {
-        list => indoc! {"
-                > [0] = 42
-    
-                > [1] = 43\
         "}
     }
 
@@ -435,7 +421,7 @@ fn tuple_val() {
     }
 
     ok! {
-        (5u64, (), 7u64, (6u64, "abc"), true, vec![42u8]) => indoc! {"
+        (5u64, (), 7u64, (6u64, "abc".to_string()), true, vec![42u8]) => indoc! {"
             > [0] = 5
 
             > [1] = null
@@ -587,11 +573,11 @@ fn tuple_variant_val() {
 #[test]
 fn map_val() {
     ok! {
-        map!["a" => true] => "> [\"a\"] = true"
+        map!["a".to_string() => true] => "> [\"a\"] = true"
     }
 
     ok! {
-        map!["a" => true, "b" => false] => indoc! {"
+        map!["a".to_string() => true, "b".to_string() => false] => indoc! {"
             > [\"a\"] = true
 
             > [\"b\"] = false\
@@ -599,7 +585,11 @@ fn map_val() {
     }
 
     ok! {
-        map!["a" => vec![], "b" => vec![], "c" => vec![]] as BTreeMap<_, Vec<()>> => indoc! {"
+        map![
+            "a".to_string() => vec![],
+            "b".to_string() => vec![],
+            "c".to_string() => vec![]
+        ] as BTreeMap<_, Vec<()>> => indoc! {"
             > [\"a\"] = []
 
             > [\"b\"] = []
@@ -610,9 +600,12 @@ fn map_val() {
 
     ok! {
         map![
-            "a" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]],
-            "b" => map!["a" => vec![]],
-            "c" => map!["a" => vec![]]
+            "a".to_string() => map![
+                "a".to_string() => vec![1u64, 2u64, 3u64],
+                "b".to_string() => vec![]
+            ],
+            "b".to_string() => map!["a".to_string() => vec![]],
+            "c".to_string() => map!["a".to_string() => vec![]]
         ] => indoc! {"
             > [\"a\"] > [\"a\"] = [1, 2, 3]
 
@@ -626,9 +619,12 @@ fn map_val() {
 
     ok! {
         map![
-            "a" => map!["a" => vec![]],
-            "b" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]],
-            "c" => map!["a" => vec![]]
+            "a".to_string() => map!["a".to_string() => vec![]],
+            "b".to_string() => map![
+                "a".to_string() => vec![1u64, 2u64, 3u64],
+                "b".to_string() => vec![]
+            ],
+            "c".to_string() => map!["a".to_string() => vec![]]
         ] => indoc! {"
             > [\"a\"] > [\"a\"] = []
 
@@ -642,9 +638,16 @@ fn map_val() {
 
     ok! {
         map![
-            "abc xyz" => map!["42" => vec![]],
-            "bc xyz" => map!["Hello world!" => vec![]],
-            "c xyz" => map!["a" => vec![1u64, 2u64, 3u64], "b" => vec![]]
+            "abc xyz".to_string() => map![
+                "42".to_string() => vec![]
+            ],
+            "bc xyz".to_string() => map![
+                "Hello world!".to_string() => vec![]
+            ],
+            "c xyz".to_string() => map![
+                "a".to_string() => vec![1u64, 2u64, 3u64],
+                "b".to_string() => vec![]
+            ]
         ] => indoc! {"
             > [\"abc xyz\"] > [\"42\"] = []
 
@@ -657,17 +660,17 @@ fn map_val() {
     }
 
     ok! {
-        map!["c" => ()] => "> [\"c\"] = null"
+        map!["c".to_string() => ()] => "> [\"c\"] = null"
     }
 
     ok! {
-        map!["c\nb" => ()] => "> [\"c\\nb\"] = null"
+        map!["c\nb".to_string() => ()] => "> [\"c\\nb\"] = null"
     }
 
     ok! {
-        map!["b" => vec![
-            map!["c" => "\x0c\x1f\r"],
-            map!["d" => ""]
+        map!["b".to_string() => vec![
+            map!["c".to_string() => "\x0c\x1f\r".to_string()],
+            map!["d".to_string() => "".to_string()]
         ]] => indoc!{"
             > [\"b\"] > [0] > [\"c\"] = \"\\f\\u00001f\\r\"
 
@@ -753,7 +756,7 @@ fn struct_variant_val() {
             tuple_field: (usize, String, Vec<usize>),
         },
         Struct2 {
-            str_field: &'static str,
+            str_field: String,
         },
     }
 
@@ -765,7 +768,7 @@ fn struct_variant_val() {
                 tuple_field: (45, "Hello".into(), vec![46, 47, 48])
             },
             Variant::Struct2 {
-                str_field: "World"
+                str_field: "World".into()
             }
 
         ] => indoc! {"

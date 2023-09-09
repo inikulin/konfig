@@ -12,7 +12,7 @@ pub use self::value::{Value, ValueCell};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
-pub use self::value::to_value;
+pub use self::value::{from_value, to_value};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
