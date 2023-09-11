@@ -24,8 +24,10 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
     type SerializeStructVariant = Impossible<(), Error>;
 
     #[inline]
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(Error::InvalidMapKeyType)
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        self.out.push_str(if v { "\"true\"" } else { "\"false\"" });
+
+        Ok(())
     }
 
     #[inline]
@@ -53,6 +55,11 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
     }
 
     #[inline]
+    fn serialize_i128(self, _v: i128) -> Result<()> {
+        Err(Error::InvalidMapKeyType)
+    }
+
+    #[inline]
     fn serialize_u8(self, v: u8) -> Result<()> {
         self.serialize_u64(v.into())
     }
@@ -74,6 +81,11 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
         self.out.push('"');
 
         Ok(())
+    }
+
+    #[inline]
+    fn serialize_u128(self, _v: u128) -> Result<()> {
+        Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
@@ -104,11 +116,11 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
     }
 
     #[inline]
-    fn serialize_some<T>(self, _value: &T) -> Result<()>
+    fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        Err(Error::InvalidMapKeyType)
+        value.serialize(self)
     }
 
     #[inline]
@@ -126,17 +138,21 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
     ) -> Result<()> {
-        Err(Error::InvalidMapKeyType)
+        self.out.push('"');
+        self.out.push_str(variant);
+        self.out.push('"');
+
+        Ok(())
     }
 
     #[inline]
-    fn serialize_newtype_struct<T>(self, _name: &'static str, _value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        Err(Error::InvalidMapKeyType)
+        value.serialize(self)
     }
 
     #[inline]

@@ -408,8 +408,8 @@ impl serde::Serializer for ValueMapKeySerializer {
     type SerializeStructVariant = Impossible<String, Error>;
 
     #[inline]
-    fn serialize_bool(self, _v: bool) -> Result<String> {
-        Err(Error::InvalidMapKeyType)
+    fn serialize_bool(self, v: bool) -> Result<String> {
+        Ok(v.to_string())
     }
 
     #[inline]
@@ -437,7 +437,7 @@ impl serde::Serializer for ValueMapKeySerializer {
 
     #[inline]
     fn serialize_i128(self, _v: i128) -> Result<String> {
-        Err(Error::Int128NotSupported)
+        Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
@@ -466,7 +466,7 @@ impl serde::Serializer for ValueMapKeySerializer {
 
     #[inline]
     fn serialize_u128(self, _v: u128) -> Result<String> {
-        Err(Error::Int128NotSupported)
+        Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
@@ -495,11 +495,11 @@ impl serde::Serializer for ValueMapKeySerializer {
     }
 
     #[inline]
-    fn serialize_some<T>(self, _value: &T) -> Result<String>
+    fn serialize_some<T>(self, value: &T) -> Result<String>
     where
         T: ?Sized + Serialize,
     {
-        Err(Error::InvalidMapKeyType)
+        value.serialize(self)
     }
 
     #[inline]
@@ -517,17 +517,17 @@ impl serde::Serializer for ValueMapKeySerializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
     ) -> Result<String> {
-        Err(Error::InvalidMapKeyType)
+        Ok(variant.to_string())
     }
 
     #[inline]
-    fn serialize_newtype_struct<T>(self, _name: &'static str, _value: &T) -> Result<String>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<String>
     where
         T: ?Sized + Serialize,
     {
-        Err(Error::InvalidMapKeyType)
+        value.serialize(self)
     }
 
     fn serialize_newtype_variant<T>(

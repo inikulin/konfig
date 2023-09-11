@@ -3,6 +3,7 @@ use konfig::error::Error;
 use konfig::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::ffi::CString;
 
 macro_rules! ok {
     ($rust:expr => $kfg:expr $(, expected_to_value: $expected_to_value:expr)?) => {
@@ -36,7 +37,7 @@ macro_rules! ser_err {
         assert_eq!(
             konfig::to_string(&$rust),
             Err($err),
-            "serialization should error"
+            "serialize Rust value should error"
         );
 
         assert_eq!(konfig::to_value(&$rust), Err($err), "to_value should error");
@@ -45,13 +46,7 @@ macro_rules! ser_err {
 
 macro_rules! map {
     ($($k:expr => $v:expr),+) => {
-        {
-            let mut m = BTreeMap::new();
-            $(
-                m.insert($k.clone(), $v.clone());
-            )+
-            m
-        }
+        [$(($k.clone(), $v.clone())),+].into_iter().collect::<BTreeMap<_, _>>()
     };
 }
 
@@ -408,7 +403,7 @@ fn seq_val() {
 #[test]
 fn bytes_val() {
     ok! {
-        std::ffi::CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
+        CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
     }
 }
 
@@ -573,6 +568,28 @@ fn tuple_variant_val() {
 
 #[test]
 fn map_val() {
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
+    enum Enum {
+        UnitVariant,
+        NewTypeVariant(String),
+        TupleVariant(u8, u8),
+        StructVariant { foo: u8 },
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
+    struct NewtypeStruct(String);
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
+    struct UnitStruct;
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
+    struct TupleStruct(u8, u8);
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
+    struct Struct {
+        foo: u8,
+    }
+
     ok! {
         map!["a".to_string() => true] => "> [\"a\"] = true"
     }
@@ -688,6 +705,44 @@ fn map_val() {
             > [\"2\"] = null\
         "}
     }
+
+    ok! { map![42u8 => 43u64] => "> [\"42\"] = 43" }
+    ok! { map![42u16 => 43u64] => "> [\"42\"] = 43" }
+    ok! { map![42u32 => 43u64] => "> [\"42\"] = 43" }
+    ok! { map![42u64 => 43u64] => "> [\"42\"] = 43" }
+
+    ok! { map![-42i8 => 43u64] => "> [\"-42\"] = 43" }
+    ok! { map![-42i16 => 43u64] => "> [\"-42\"] = 43" }
+    ok! { map![-42i32 => 43u64] => "> [\"-42\"] = 43" }
+    ok! { map![-42i64 => 43u64] => "> [\"-42\"] = 43" }
+
+    ok! { map!['a' => 43u64] => "> [\"a\"] = 43"}
+    ok! { map!['\n' => 43u64] => "> [\"\\n\"] = 43" }
+    ok! { map!['\u{0}' => 43u64] => "> [\"\\u000000\"] = 43" }
+
+    ok! { map!["\n".to_string() => 43u64] => "> [\"\\n\"] = 43" }
+    ok! { map!["\u{0}".to_string() => 43u64] => "> [\"\\u000000\"] = 43" }
+
+    ok! { map![true => 43u64] => "> [\"true\"] = 43" }
+    ok! { map![Some(42u8) => 43u64] => "> [\"42\"] = 43" }
+
+    ok! { map![Enum::UnitVariant => 43u64] => "> [\"UnitVariant\"] = 43" }
+    ok! { map![NewtypeStruct("foo".into()) => 43u64] => "> [\"foo\"] = 43" }
+
+    ser_err! { map![UnitStruct => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![Enum::NewTypeVariant("foo".into()) => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![vec![1u8, 2u8] => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![CString::new([0x01]).unwrap() => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![TupleStruct(1, 2) => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![Enum::TupleVariant(1, 2) => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![map![1 => 2] => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![Struct { foo: 1 } => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![Enum::StructVariant { foo: 1 } => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![(1u8, 2u8) => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![() => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![Option::<u8>::None => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![42u128 => 43u64] => Error::InvalidMapKeyType }
+    ser_err! { map![-42i128 => 43u64] => Error::InvalidMapKeyType }
 }
 
 #[test]
