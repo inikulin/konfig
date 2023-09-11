@@ -62,8 +62,8 @@ impl<'i> InsertionPoint<'i> {
                     return Err(parse_error!(
                         self.span,
                         "sequence items must be defined in order; \
-                        current sequence length: {}, specified item index: {}",
-                        seq.len(),
+                        last seen item index: {}, specified item index: {}",
+                        seq.len().saturating_sub(1),
                         idx
                     ));
                 }

@@ -695,3 +695,48 @@ fn doc_and_expr_spacing() {
         = expected path item"
     }
 }
+
+#[test]
+fn seq_order() {
+    err! {
+        indoc! {"
+           > [1] = 42
+        "} => 
+        " --> 1:3
+        |
+      1 | > [1] = 42
+        |   ^-^
+        |
+        = sequence items should be defined in order, with the first item having index `0`"
+    }
+
+    err! {
+        indoc! {"
+           > [0] = 42
+
+           > [3] = 43
+        "} => 
+        " --> 3:3
+        |
+      3 | > [3] = 43
+        |   ^-^
+        |
+        = sequence items must be defined in order; last seen item index: 0, specified item index: 3"
+    }
+
+    err! {
+        indoc! {"
+           > [0] = 42
+
+           > [1] = 43
+
+           > [3] = 44
+        "} => 
+        " --> 5:3
+        |
+      5 | > [3] = 44
+        |   ^-^
+        |
+        = sequence items must be defined in order; last seen item index: 1, specified item index: 3"
+    }
+}
