@@ -40,12 +40,6 @@ pub enum Value {
     Variant(String, ValueCell),
 }
 
-impl Value {
-    pub(crate) fn is_multitenant(&self) -> bool {
-        matches!(self, Value::Sequence(_) | Value::Map(_) | Value::Struct(_))
-    }
-}
-
 impl From<ValueCell> for Value {
     fn from(cell: ValueCell) -> Self {
         #[cfg(any(test, feature = "test_assertions"))]

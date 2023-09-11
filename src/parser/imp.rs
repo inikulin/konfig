@@ -219,7 +219,7 @@ impl Parser {
         let insertion_point = ast
             .borrow()
             .as_ref()
-            .map(|root| InsertionPoint::find(&mut path, &new_value, span, root.rc_clone()))
+            .map(|root| InsertionPoint::find(&mut path, span, root.rc_clone()))
             .transpose()?;
 
         for node in path.rev() {

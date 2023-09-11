@@ -1,4 +1,4 @@
-use super::error::{parse_error, IntoParseResult, ParseResult, TypeName};
+use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::imp::Node;
 use super::path_item::PathItem;
 use super::{Parser, Span};
@@ -14,7 +14,6 @@ impl<'i> InsertionPoint<'i> {
     #[allow(clippy::result_large_err)]
     pub(super) fn find(
         path: &mut impl Iterator<Item = Node<'i>>,
-        rhs: &ValueCell,
         assignment_span: Span,
         root: ValueCell,
     ) -> ParseResult<InsertionPoint<'i>> {
@@ -28,29 +27,18 @@ impl<'i> InsertionPoint<'i> {
             match next {
                 Some(next) => host = next,
                 None => {
-                    return if host.borrow().value.is_multitenant() {
-                        Ok(InsertionPoint {
-                            host,
-                            path_item,
-                            span,
-                        })
-                    } else {
-                        Err(parse_error!(
-                            assignment_span,
-                            "attempt to assign {} to the path that was assigned {} previously",
-                            rhs.type_name(),
-                            host.type_name()
-                        ))
-                    }
+                    return Ok(InsertionPoint {
+                        host,
+                        path_item,
+                        span,
+                    })
                 }
             }
         }
 
         Err(parse_error!(
             assignment_span,
-            "attempt to assign {} to a path item that was previously defined as {}",
-            rhs.type_name(),
-            host.type_name()
+            "the path already has a value assigned",
         ))
     }
 

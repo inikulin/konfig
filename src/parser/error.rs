@@ -1,9 +1,6 @@
 use super::imp::Rule;
-use super::path_item::PathItem;
-use crate::value::{Value, ValueCell};
 use pest::Span;
 use pest_consume::Error as PestError;
-use std::borrow::Cow;
 use std::fmt;
 
 macro_rules! parse_error {
@@ -44,44 +41,6 @@ where
     #[inline]
     fn into_parse_result(self, span: Span) -> ParseResult<T> {
         self.map_err(|e| parse_error!(span, "{}", e.to_string()))
-    }
-}
-
-pub(super) trait TypeName {
-    fn type_name(&self) -> Cow<'static, str>;
-}
-
-impl TypeName for PathItem<'_> {
-    fn type_name(&self) -> Cow<'static, str> {
-        match self {
-            PathItem::EnumVariant(v) => format!("new type enum variant `{v}`").into(),
-            PathItem::FieldName(_) => "structure".into(),
-            PathItem::Index(_) => "sequence".into(),
-            PathItem::MapKey(_) => "map".into(),
-        }
-    }
-}
-
-impl TypeName for ValueCell {
-    fn type_name(&self) -> Cow<'static, str> {
-        let cell = self.borrow();
-
-        match &cell.value {
-            Value::Struct(_) => "structure".into(),
-            Value::Map(_) => "map".into(),
-            Value::Variant(v, _) => format!("new type enum variant `{v}`").into(),
-            Value::Sequence(_) if cell.parsing_meta.is_inline_seq => {
-                "inline sequence of primitive values".into()
-            }
-            Value::Sequence(_) => "sequence".into(),
-            Value::Bool(_) => "boolean value".into(),
-            Value::Float(_) => "floating point number value".into(),
-            Value::Int(_) => "negative integer value".into(),
-            Value::UInt(_) => "positive integer value".into(),
-            Value::Null => "null value".into(),
-            Value::String(_) => "string value".into(),
-            Value::UnitVariant(v) => format!("unit enum variant `{v}`").into(),
-        }
     }
 }
 

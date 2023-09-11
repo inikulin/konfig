@@ -571,37 +571,6 @@ fn parse_rhs() {
 }
 
 #[test]
-fn sequence_overwrite() {
-    err! {
-        indoc! {"
-            > foo = [1, 2, 3]
-
-            > foo > [0] = 3
-        "} => 
-        " --> 3:9
-        |
-      3 | > foo > [0] = 3
-        |         ^-^
-        |
-        = path item is expected to be sequence, but it was previously defined as inline sequence of primitive values"
-    }
-
-    err! {
-        indoc! {"
-            > foo > [0] = 3
-
-            > foo = [1, 2, 3]
-        "} => 
-        " --> 3:1
-        |
-      3 | > foo = [1, 2, 3]␊
-        | ^----------------^
-        |
-        = attempt to assign inline sequence of primitive values to a path item that was previously defined as sequence"
-    }
-}
-
-#[test]
 fn doc_and_expr_spacing() {
     ok! {
         indoc! {"
@@ -738,5 +707,78 @@ fn seq_order() {
         |   ^-^
         |
         = sequence items must be defined in order; last seen item index: 1, specified item index: 3"
+    }
+}
+
+#[test]
+fn reassignment() {
+    err! {
+        indoc! {"
+           > foo > bar > baz = 42
+
+           > foo > bar = 43
+        "} => 
+        " --> 3:1
+        |
+      3 | > foo > bar = 43␊
+        | ^---------------^
+        |
+        = the path already has a value assigned"
+    }
+
+    err! {
+        indoc! {"
+           > foo > bar = 42
+
+           > foo > bar = 43
+        "} => 
+        " --> 3:1
+        |
+      3 | > foo > bar = 43␊
+        | ^---------------^
+        |
+        = the path already has a value assigned"
+    }
+
+    err! {
+        indoc! {"
+            > foo > [0] = 3
+
+            > foo = [1, 2, 3]
+        "} => 
+        " --> 3:1
+        |
+      3 | > foo = [1, 2, 3]␊
+        | ^----------------^
+        |
+        = the path already has a value assigned"
+    }
+
+    err! {
+        indoc! {"
+            > foo = [1, 2, 3]
+
+            > foo > [0] = 3
+        "} => 
+        " --> 3:9
+        |
+      3 | > foo > [0] = 3
+        |         ^-^
+        |
+        = path item has incompatible type with the previously specified values"
+    }
+
+    err! {
+        indoc! {"
+            > foo > bar = 3
+
+            > foo > [\"baz\"] = 3
+        "} => 
+        " --> 3:9
+        |
+      3 | > foo > [\"baz\"] = 3
+        |         ^-----^
+        |
+        = path item has incompatible type with the previously specified values"
     }
 }

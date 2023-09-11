@@ -1,4 +1,4 @@
-use super::error::{parse_error, ParseResult, TypeName};
+use super::error::{parse_error, ParseResult};
 use crate::value::{Value, ValueCell};
 use pest::Span;
 
@@ -28,7 +28,10 @@ impl<'i> PathItem<'i> {
         .map(Into::into)
     }
 
-    pub(super) fn index_value(&self, value_cell: &ValueCell) -> Result<Option<ValueCell>, String> {
+    pub(super) fn index_value(
+        &self,
+        value_cell: &ValueCell,
+    ) -> Result<Option<ValueCell>, &'static str> {
         let value_cell_ref = value_cell.borrow();
 
         match (self, &value_cell_ref.value) {
@@ -44,11 +47,7 @@ impl<'i> PathItem<'i> {
             (PathItem::EnumVariant(var1), Value::Variant(var2, value)) if var1 == var2 => {
                 Ok(Some(value.rc_clone()))
             }
-            _ => Err(format!(
-                "path item is expected to be {}, but it was previously defined as {}",
-                self.type_name(),
-                value_cell.type_name()
-            )),
+            _ => Err("path item has incompatible type with the previously specified values"),
         }
     }
 }
