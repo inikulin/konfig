@@ -27,7 +27,7 @@ macro_rules! impl_simple_deserialize {
             where
                 V: Visitor<'de>,
             {
-                parse(self.input)?.$de_fn(visitor)
+                parse(self.input)?.into_value().$de_fn(visitor)
             }
         )+
     };
@@ -41,7 +41,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_unit_struct(name, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_unit_struct(name, visitor)
     }
 
     #[inline]
@@ -49,7 +51,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_tuple(len, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_tuple(len, visitor)
     }
 
     #[inline]
@@ -57,7 +61,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_newtype_struct(name, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_newtype_struct(name, visitor)
     }
 
     #[inline]
@@ -70,7 +76,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_tuple_struct(name, len, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_tuple_struct(name, len, visitor)
     }
 
     #[inline]
@@ -83,7 +91,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_struct(name, fields, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_struct(name, fields, visitor)
     }
 
     #[inline]
@@ -96,7 +106,9 @@ impl<'i, 'de> serde::de::Deserializer<'de> for Deserializer<'i> {
     where
         V: Visitor<'de>,
     {
-        parse(self.input)?.deserialize_enum(name, variants, visitor)
+        parse(self.input)?
+            .into_value()
+            .deserialize_enum(name, variants, visitor)
     }
 
     impl_simple_deserialize! {

@@ -1,7 +1,7 @@
 use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::insertion_point::InsertionPoint;
 use super::path_item::PathItem;
-use super::{Ast, ParsingMeta};
+use super::{Ast, LexicalInfo};
 use crate::value::{Value, ValueCell};
 use pest_consume::{match_nodes, Parser as PestParser};
 
@@ -27,7 +27,7 @@ impl Parser {
     }
 
     pub(super) fn primitive(node: Node) -> ParseResult<ValueCell> {
-        Ok(match_nodes! {
+        let value = match_nodes! {
             node.children();
             [null(_)] => Value::Null,
             [boolean(v)] => Value::Bool(v),
@@ -38,8 +38,16 @@ impl Parser {
             [double_quoted_string(v)] => Value::String(v),
             [raw_string(v)] => Value::String(v),
             [enum_variant(v)] => Value::UnitVariant(v.to_string()),
-        }
-        .into())
+        };
+
+        Ok(ValueCell::new(
+            value,
+            LexicalInfo {
+                is_inline_seq: false,
+                docs_before: "".into(),
+                docs_after: "".into(),
+            },
+        ))
     }
 
     pub(super) fn pos_int(node: Node) -> ParseResult<u64> {
@@ -140,8 +148,10 @@ impl Parser {
 
         Ok(ValueCell::new(
             Value::Sequence(seq),
-            ParsingMeta {
+            LexicalInfo {
                 is_inline_seq: true,
+                docs_before: "".into(),
+                docs_after: "".into(),
             },
         ))
     }

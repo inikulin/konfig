@@ -6,7 +6,7 @@ mod path_item;
 use self::error::{rename_rules, ParseError, ParseResult};
 use self::imp::{Node, Parser, Rule};
 use crate::error::{Error, Result};
-use crate::value::{Value, ValueCell};
+use crate::value::ValueCell;
 use pest::Span;
 use pest_consume::Parser as _;
 use std::cell::RefCell;
@@ -14,12 +14,17 @@ use std::rc::Rc;
 
 type Ast = Rc<RefCell<Option<ValueCell>>>;
 
-#[derive(Debug, PartialEq, Clone, Copy, Default)]
-pub(crate) struct ParsingMeta {
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct LexicalInfo {
     is_inline_seq: bool,
+    docs_before: String,
+    docs_after: String,
 }
 
-pub fn parse(input: &str) -> Result<Value> {
+pub fn parse(input: &str) -> Result<ValueCell> {
+    #[cfg(debug_assertions)]
+    let _guard = crate::value::value_cell_safety_checks::ParsingGuard::new();
+
     let ast = Rc::new(RefCell::new(None));
 
     parse_rule(Rule::konfig, input, Rc::clone(&ast))
@@ -30,22 +35,14 @@ pub fn parse(input: &str) -> Result<Value> {
 
     let mut ast_mut = ast.borrow_mut();
 
-    Ok(ast_mut.take().unwrap().into_value())
+    Ok(ast_mut.take().unwrap())
 }
 
 #[allow(clippy::result_large_err)]
 fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
-    #[cfg(any(test, feature = "test_assertions"))]
-    crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(true));
-
-    let res = Parser::parse_with_userdata(rule, input, ast)
+    Parser::parse_with_userdata(rule, input, ast)
         .map_err(rename_rules)
-        .and_then(|p| p.single());
-
-    #[cfg(any(test, feature = "test_assertions"))]
-    crate::value::value_cell_safety_checks::IS_PARSING.with(|is_parsing| is_parsing.set(false));
-
-    res
+        .and_then(|p| p.single())
 }
 
 #[cfg(test)]
@@ -57,6 +54,9 @@ mod tests {
 
     macro_rules! parse {
         ($rule:ident $input:expr) => {{
+            #[cfg(debug_assertions)]
+            let _guard = crate::value::value_cell_safety_checks::ParsingGuard::new();
+
             parse_rule(Rule::$rule, $input, Rc::new(RefCell::new(None))).and_then(Parser::$rule)
         }};
     }

@@ -25,7 +25,7 @@ impl<'i> PathItem<'i> {
             )),
             PathItem::EnumVariant(variant) => Ok(Value::Variant(variant.to_string(), prev)),
         }
-        .map(Into::into)
+        .map(|v| ValueCell::new(v, Default::default()))
     }
 
     pub(super) fn index_value(
@@ -36,7 +36,7 @@ impl<'i> PathItem<'i> {
 
         match (self, &value_cell_ref.value) {
             (PathItem::Index(idx), Value::Sequence(seq))
-                if !value_cell_ref.parsing_meta.is_inline_seq =>
+                if !value_cell_ref.lexical_info.is_inline_seq =>
             {
                 Ok(seq.get(*idx).map(ValueCell::rc_clone))
             }

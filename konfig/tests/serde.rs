@@ -14,7 +14,7 @@ macro_rules! ok {
         );
 
         #[allow(unused_mut, unused_assignments)]
-        let mut expected_to_value = konfig::parse($kfg);
+        let mut expected_to_value = konfig::parse($kfg).map(Into::into);
 
         // NOTE: sometimes serialization and unhinted parsing are not roundtripable,
         // e.g. serialized positive `i64` will be parsed as `u64`. For these cases we

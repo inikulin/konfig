@@ -18,11 +18,9 @@ serde = [
     "dep:konfig-serde",
 ]
 
-test_assertions = []
-
 [dependencies]
-konfig-edit = { version = "1", path = "../konfig-edit" }
-konfig-serde = { version = "1", path = "../konfig-serde", optional = true }
+konfig-edit = { workspace = true }
+konfig-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }
@@ -30,4 +28,3 @@ indoc = { workspace = true }
 serde_yaml = { workspace = true }
 ron = { workspace = true }
 indexmap = { workspace = true }
-konfig-edit = { workspace = true, features = ["test_assertions"] }

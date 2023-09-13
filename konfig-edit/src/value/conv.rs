@@ -202,7 +202,7 @@ impl FromStr for Value {
 
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse(s)
+        parse(s).map(Into::into)
     }
 }
 

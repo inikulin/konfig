@@ -9,7 +9,7 @@ mod from_value;
 #[cfg(feature = "serde")]
 mod serde;
 
-use crate::parser::ParsingMeta;
+use crate::parser::LexicalInfo;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
@@ -42,7 +42,7 @@ pub enum Value {
 
 impl From<ValueCell> for Value {
     fn from(cell: ValueCell) -> Self {
-        #[cfg(any(test, feature = "test_assertions"))]
+        #[cfg(debug_assertions)]
         value_cell_safety_checks::assert_not_parsing();
 
         // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
@@ -58,16 +58,16 @@ impl From<ValueCell> for Value {
 #[derive(Debug)]
 pub(super) struct ValueCellInternal {
     pub(super) value: Value,
-    pub(super) parsing_meta: ParsingMeta,
+    pub(super) lexical_info: LexicalInfo,
 }
 
 pub struct ValueCell(Rc<RefCell<ValueCellInternal>>);
 
 impl ValueCell {
-    pub(super) fn new(value: Value, parsing_meta: ParsingMeta) -> Self {
+    pub(super) fn new(value: Value, lexical_info: LexicalInfo) -> Self {
         Self(Rc::new(RefCell::new(ValueCellInternal {
             value,
-            parsing_meta,
+            lexical_info,
         })))
     }
 
@@ -90,6 +90,36 @@ impl ValueCell {
     pub fn into_value(self) -> Value {
         self.into()
     }
+
+    #[inline]
+    pub fn lexical_info(&self) -> &LexicalInfo {
+        &self.internal().lexical_info
+    }
+
+    #[inline]
+    pub fn lexical_info_mut(&mut self) -> &LexicalInfo {
+        &self.internal_mut().lexical_info
+    }
+
+    #[inline]
+    fn internal(&self) -> &ValueCellInternal {
+        #[cfg(debug_assertions)]
+        value_cell_safety_checks::assert_not_parsing();
+
+        // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the
+        // `ValueCellInternal` when parsing is complete.
+        unsafe { self.0.as_ptr().as_ref().unwrap() }
+    }
+
+    #[inline]
+    fn internal_mut(&mut self) -> &mut ValueCellInternal {
+        #[cfg(debug_assertions)]
+        value_cell_safety_checks::assert_not_parsing();
+
+        // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the
+        // `ValueCellInternal` when parsing is complete.
+        unsafe { self.0.as_ptr().as_mut().unwrap() }
+    }
 }
 
 impl Deref for ValueCell {
@@ -97,12 +127,7 @@ impl Deref for ValueCell {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        #[cfg(any(test, feature = "test_assertions"))]
-        value_cell_safety_checks::assert_not_parsing();
-
-        // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
-        // parsing is complete.
-        &unsafe { &*self.0.as_ptr() }.value
+        &self.internal().value
     }
 }
 
@@ -115,12 +140,7 @@ impl fmt::Debug for ValueCell {
 impl DerefMut for ValueCell {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        #[cfg(any(test, feature = "test_assertions"))]
-        value_cell_safety_checks::assert_not_parsing();
-
-        // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
-        // parsing is complete.
-        &mut unsafe { &mut *self.0.as_ptr() }.value
+        &mut self.internal_mut().value
     }
 }
 
@@ -145,6 +165,12 @@ impl Clone for ValueCell {
 
 impl From<Value> for ValueCell {
     fn from(value: Value) -> Self {
+        // NOTE: it is technically safe to use this API in parsing, but we still want to forbid
+        // it to ensure that lexical information is explicitly assigned by the parser for each
+        // node.
+        #[cfg(debug_assertions)]
+        value_cell_safety_checks::assert_not_parsing();
+
         Self::new(value, Default::default())
     }
 }
@@ -157,22 +183,35 @@ impl From<Value> for ValueCell {
 unsafe impl Send for ValueCell {}
 unsafe impl Sync for ValueCell {}
 
-#[cfg(any(test, feature = "test_assertions"))]
+#[cfg(debug_assertions)]
 pub(super) mod value_cell_safety_checks {
     use super::*;
     use std::cell::Cell;
     use std::thread_local;
 
     thread_local! {
-        pub(crate) static IS_PARSING: Cell<bool> = Default::default();
+        static IS_PARSING: Cell<bool> = Default::default();
+    }
+
+    pub(crate) struct ParsingGuard;
+
+    impl ParsingGuard {
+        pub(crate) fn new() -> Self {
+            IS_PARSING.with(|is_parsing| is_parsing.set(true));
+
+            Self
+        }
+    }
+
+    impl Drop for ParsingGuard {
+        fn drop(&mut self) {
+            IS_PARSING.with(|is_parsing| is_parsing.set(false));
+        }
     }
 
     pub(super) fn assert_not_parsing() {
         IS_PARSING.with(|is_parsing| {
-            assert!(
-                !is_parsing.get(),
-                "parser should not use `ValueCell` API that assumes exclusive ownership"
-            );
+            assert!(!is_parsing.get(), "parser should not use this API");
         });
     }
 
