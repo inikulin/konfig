@@ -1,6 +1,6 @@
 use super::{Value, ValueCell};
+use crate::error::Error;
 use crate::parser::parse;
-use crate::Error;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::str::FromStr;

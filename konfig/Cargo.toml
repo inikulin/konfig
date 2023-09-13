@@ -1,0 +1,33 @@
+[package]
+name = "konfig"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+exclude = ["/tests"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docs_rs"]
+
+[features]
+default = ["serde"]
+
+serde = [
+    "konfig-edit/serde",
+    "dep:konfig-serde",
+]
+
+test_assertions = []
+
+[dependencies]
+konfig-edit = { version = "1", path = "../konfig-edit" }
+konfig-serde = { version = "1", path = "../konfig-serde", optional = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+indoc = { workspace = true }
+serde_yaml = { workspace = true }
+ron = { workspace = true }
+indexmap = { workspace = true }
+konfig-edit = { workspace = true, features = ["test_assertions"] }

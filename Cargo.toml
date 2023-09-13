@@ -1,35 +1,29 @@
-[package]
-name = "konfig"
-version = "0.1.0"
-edition = "2021"
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docs_rs"]
-
-[features]
-default = ["serde"]
-
-serde = [
-    "dep:serde",
-    "dep:itoa",
-    "dep:ryu",
+[workspace]
+members = [
+    "konfig",
+    "konfig-edit",
+    "konfig-serde"
 ]
+resolver = "2"
 
-test_assertions = []
+[workspace.package]
+version = "1.0.0"
+repository = "https://github.com/inikulin/konfig"
+edition = "2021"
+authors = ["Ivan Nikulin <ivan@nikulin.engineering>"]
 
-[dependencies]
-serde = { version = "^1.0.100", features = ["derive"], optional = true }
-itoa = { version = "1", optional = true }
-ryu = { version = "1", optional = true }
+[workspace.dependencies]
+konfig-edit = { version = "1", path = "./konfig-edit" }
+konfig-serde = { version = "1", path = "./konfig-serde" }
+
+serde = { version = "^1.0.100", features = ["derive"] }
+itoa = { version = "1" }
+ryu = { version = "1" }
 thiserror = "1"
 pest_consume = "1.0"
 pest = "2.1"
-
-[dev-dependencies]
 indoc = "2.0"
 serde_yaml = "0.9"
 serde_json = "1.0"
 ron = "0.8"
 indexmap = { version = "1.9", features = [ "serde-1" ] }
-konfig = { path = "./", features = ["test_assertions"] }

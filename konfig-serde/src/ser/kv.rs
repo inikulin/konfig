@@ -1,6 +1,6 @@
 use super::map_key::MapKeySerializer;
 use super::Serializer;
-use crate::error::{Error, Result};
+use konfig_edit::error::{Error, Result};
 use serde::ser::Serialize;
 
 pub struct KVSerializer<'s, 'o> {

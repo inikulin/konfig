@@ -4,7 +4,7 @@ use konfig::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// NOTE: this pretty much a direct copy of the `crate::Value`, but without custom
+// NOTE: this pretty much a direct copy of the `Value`, but without custom
 // Serialize/Deserialize implementation allowing us to test resulting AST comparing
 // it with its RON representation. Not very elegant, but convenient.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

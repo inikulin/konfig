@@ -2,7 +2,7 @@ use super::is_primitive::is_primitive;
 use super::kv::KVSerializer;
 use super::utils;
 use super::Serializer;
-use crate::error::{Error, Result};
+use konfig_edit::error::{Error, Result};
 use serde::ser::Serialize;
 
 enum SeqRepresentation<'s, 'o> {

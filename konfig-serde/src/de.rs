@@ -1,5 +1,5 @@
-use crate::parse;
-use crate::{Error, Result};
+use konfig_edit::error::{Error, Result};
+use konfig_edit::parser::parse;
 use serde::de::{DeserializeOwned, Visitor};
 
 pub fn from_str<T>(input: &str) -> Result<T>

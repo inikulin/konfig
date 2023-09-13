@@ -1,5 +1,5 @@
 use super::{Value, ValueCell};
-use crate::{Error, Result};
+use crate::error::{Error, Result};
 use serde::de::IntoDeserializer;
 use serde::de::Unexpected;
 use serde::de::{Deserialize, DeserializeSeed, Visitor};

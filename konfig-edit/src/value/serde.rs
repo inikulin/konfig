@@ -1,5 +1,5 @@
 use super::Value;
-use crate::Error;
+use crate::error::Error;
 use std::collections::HashMap;
 use std::fmt;
 

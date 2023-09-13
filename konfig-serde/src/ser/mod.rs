@@ -5,7 +5,7 @@ mod seq;
 mod serializer;
 pub(crate) mod utils;
 
-use crate::error::Result;
+use konfig_edit::error::Result;
 use serde::ser::Serialize;
 
 pub use self::serializer::Serializer;

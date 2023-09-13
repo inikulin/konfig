@@ -1,0 +1,13 @@
+[package]
+name = "konfig-serde"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+konfig-edit = { workspace = true }
+serde = { workspace = true }
+itoa = { workspace = true }
+ryu = { workspace = true }
+thiserror = { workspace = true }

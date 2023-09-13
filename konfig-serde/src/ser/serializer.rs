@@ -1,7 +1,7 @@
 use super::kv::KVSerializer;
 use super::seq::SeqSerializer;
 use super::utils;
-use crate::error::{Error, Result};
+use konfig_edit::error::{Error, Result};
 use serde::ser::Serialize;
 use std::borrow::Cow;
 

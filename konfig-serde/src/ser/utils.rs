@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use konfig_edit::error::{Error, Result};
 
 pub(super) trait Float: ryu::Float {
     fn is_finite(self) -> bool;

@@ -1,6 +1,5 @@
 use super::{Value, ValueCell};
-use crate::ser::utils;
-use crate::{Error, Result};
+use crate::error::{Error, Result};
 use serde::ser::Impossible;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -428,11 +427,7 @@ impl serde::Serializer for ValueMapKeySerializer {
     }
 
     fn serialize_i64(self, v: i64) -> Result<String> {
-        let mut out = String::with_capacity(16);
-
-        utils::write_int(&mut out, v);
-
-        Ok(out)
+        Ok(v.to_string())
     }
 
     #[inline]
@@ -457,11 +452,7 @@ impl serde::Serializer for ValueMapKeySerializer {
 
     #[inline]
     fn serialize_u64(self, v: u64) -> Result<String> {
-        let mut out = String::with_capacity(16);
-
-        utils::write_int(&mut out, v);
-
-        Ok(out)
+        Ok(v.to_string())
     }
 
     #[inline]

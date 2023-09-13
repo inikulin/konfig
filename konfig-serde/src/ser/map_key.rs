@@ -1,5 +1,5 @@
 use super::utils;
-use crate::error::{Error, Result};
+use konfig_edit::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
 
 pub(crate) struct MapKeySerializer<'o> {
