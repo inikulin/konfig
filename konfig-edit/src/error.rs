@@ -17,6 +17,44 @@ pub enum Error {
 }
 
 #[cfg(feature = "serde")]
+impl Error {
+    #[inline]
+    pub(crate) fn de_fewer_elements_in_seq(actual_len: usize) -> Self {
+        serde::de::Error::invalid_length(actual_len, &"fewer elements in sequence")
+    }
+
+    #[inline]
+    pub(crate) fn de_fewer_elements_in_map(len: usize) -> Self {
+        serde::de::Error::invalid_length(len, &"fewer elements in map")
+    }
+
+    #[inline]
+    pub(crate) fn de_map_value_missing() -> Self {
+        serde::de::Error::custom("value is missing")
+    }
+
+    #[inline]
+    pub(crate) fn de_expected_newtype_variant(got: serde::de::Unexpected) -> Self {
+        serde::de::Error::invalid_type(got, &"newtype variant")
+    }
+
+    #[inline]
+    pub(crate) fn de_expected_unit_variant(got: serde::de::Unexpected) -> Self {
+        serde::de::Error::invalid_type(got, &"unit variant")
+    }
+
+    #[inline]
+    pub(crate) fn de_expected_tuple_variant(got: serde::de::Unexpected) -> Self {
+        serde::de::Error::invalid_type(got, &"tuple variant")
+    }
+
+    #[inline]
+    pub(crate) fn de_expected_struct_variant(got: serde::de::Unexpected) -> Self {
+        serde::de::Error::invalid_type(got, &"struct variant")
+    }
+}
+
+#[cfg(feature = "serde")]
 impl serde::ser::Error for Error {
     fn custom<T>(msg: T) -> Self
     where

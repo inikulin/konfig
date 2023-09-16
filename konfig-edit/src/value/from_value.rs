@@ -89,10 +89,7 @@ where
     if deserializer.iter.len() == 0 {
         Ok(seq)
     } else {
-        Err(serde::de::Error::invalid_length(
-            len,
-            &"fewer elements in sequence",
-        ))
+        Err(Error::de_fewer_elements_in_seq(len))
     }
 }
 
@@ -113,10 +110,7 @@ where
     if deserializer.iter.len() == 0 {
         Ok(map)
     } else {
-        Err(serde::de::Error::invalid_length(
-            len,
-            &"fewer elements in map",
-        ))
+        Err(Error::de_fewer_elements_in_map(len))
     }
 }
 
@@ -172,7 +166,7 @@ impl<'de> serde::de::MapAccess<'de> for MapDeserializer {
     {
         match self.next_value.take() {
             Some(value) => seed.deserialize(value.into_value()),
-            None => Err(serde::de::Error::custom("value is missing")),
+            None => Err(Error::de_map_value_missing()),
         }
     }
 
@@ -297,10 +291,7 @@ impl<'de> serde::de::VariantAccess<'de> for EnumVariantDeserializer {
 
     fn unit_variant(self) -> Result<()> {
         match self.value {
-            Some(_) => Err(serde::de::Error::invalid_type(
-                Unexpected::NewtypeVariant,
-                &"unit variant",
-            )),
+            Some(_) => Err(Error::de_expected_unit_variant(Unexpected::NewtypeVariant)),
             None => Ok(()),
         }
     }
@@ -311,10 +302,7 @@ impl<'de> serde::de::VariantAccess<'de> for EnumVariantDeserializer {
     {
         match self.value {
             Some(value) => seed.deserialize(value.into_value()),
-            None => Err(serde::de::Error::invalid_type(
-                Unexpected::UnitVariant,
-                &"newtype variant",
-            )),
+            None => Err(Error::de_expected_newtype_variant(Unexpected::UnitVariant)),
         }
     }
 
@@ -324,14 +312,8 @@ impl<'de> serde::de::VariantAccess<'de> for EnumVariantDeserializer {
     {
         match self.value.map(ValueCell::into_value) {
             Some(Value::Sequence(value)) => deserialize_seq(value, visitor),
-            Some(value) => Err(serde::de::Error::invalid_type(
-                value.as_unexpected(),
-                &"tuple variant",
-            )),
-            None => Err(serde::de::Error::invalid_type(
-                Unexpected::UnitVariant,
-                &"tuple variant",
-            )),
+            Some(value) => Err(Error::de_expected_tuple_variant(value.as_unexpected())),
+            None => Err(Error::de_expected_tuple_variant(Unexpected::UnitVariant)),
         }
     }
 
@@ -341,14 +323,8 @@ impl<'de> serde::de::VariantAccess<'de> for EnumVariantDeserializer {
     {
         match self.value.map(ValueCell::into_value) {
             Some(Value::Struct(value)) => deserialize_map(value, visitor),
-            Some(value) => Err(serde::de::Error::invalid_type(
-                value.as_unexpected(),
-                &"struct variant",
-            )),
-            None => Err(serde::de::Error::invalid_type(
-                Unexpected::UnitVariant,
-                &"struct variant",
-            )),
+            Some(value) => Err(Error::de_expected_struct_variant(value.as_unexpected())),
+            None => Err(Error::de_expected_struct_variant(Unexpected::UnitVariant)),
         }
     }
 }
@@ -371,5 +347,196 @@ impl Value {
                 _ => Unexpected::NewtypeVariant,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse;
+    use serde::de::VariantAccess as _;
+    use std::fmt;
+    use std::result::Result as StdResult;
+
+    macro_rules! declare_test_deserialized_with {
+        ($($visitor_fn:tt)+) => {
+            struct TestVisitor;
+
+            impl<'de> Visitor<'de> for TestVisitor {
+                type Value = TestDeserialized;
+
+                fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.write_str("")
+                }
+
+                $($visitor_fn)+
+            }
+
+            #[derive(Debug)]
+            struct TestDeserialized;
+
+            impl<'de> Deserialize<'de> for TestDeserialized {
+                fn deserialize<D>(deserializer: D) -> StdResult<TestDeserialized, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    deserializer.deserialize_any(TestVisitor)
+                }
+            }
+        };
+    }
+
+    #[test]
+    fn fewer_elements_in_seq() {
+        declare_test_deserialized_with! {
+            fn visit_seq<A>(self, seq: A) -> StdResult<TestDeserialized, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                assert_eq!(seq.size_hint(), Some(3));
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> = [1, 2, 3]").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_fewer_elements_in_seq(3)
+        );
+    }
+
+    #[test]
+    fn fewer_elements_in_map() {
+        declare_test_deserialized_with! {
+            fn visit_map<A>(self, map: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                assert_eq!(map.size_hint(), Some(1));
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> ['foo'] = 42").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_fewer_elements_in_map(1)
+        );
+    }
+
+    #[test]
+    fn map_next_value_missing() {
+        declare_test_deserialized_with! {
+            fn visit_map<A>(self, mut map: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                map.next_value()?;
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> ['foo'] = 42").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_map_value_missing()
+        );
+    }
+
+    #[test]
+    fn expected_unit_variant() {
+        declare_test_deserialized_with! {
+            fn visit_enum<A>(self, data: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::EnumAccess<'de>,
+            {
+                data.variant::<String>()?.1.unit_variant()?;
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> `foo` = 42").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_unit_variant(Unexpected::NewtypeVariant)
+        );
+    }
+
+    #[test]
+    fn expected_newtype_variant() {
+        declare_test_deserialized_with! {
+            fn visit_enum<A>(self, data: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::EnumAccess<'de>,
+            {
+                data.variant::<String>()?.1.newtype_variant()?;
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> = `foo`").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_newtype_variant(Unexpected::UnitVariant)
+        );
+    }
+
+    #[test]
+    fn de_expected_tuple_variant() {
+        declare_test_deserialized_with! {
+            fn visit_enum<A>(self, data: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::EnumAccess<'de>,
+            {
+                data.variant::<String>()?.1.tuple_variant(1, self)?;
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> `foo` = 42").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_tuple_variant(Unexpected::Unsigned(42))
+        );
+
+        let value = parse("> = `foo`").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_tuple_variant(Unexpected::UnitVariant)
+        );
+    }
+
+    #[test]
+    fn de_expected_struct_variant() {
+        declare_test_deserialized_with! {
+            fn visit_enum<A>(self, data: A) -> StdResult<Self::Value, A::Error>
+            where
+                A: serde::de::EnumAccess<'de>,
+            {
+                data.variant::<String>()?.1.struct_variant(&[], self)?;
+                Ok(TestDeserialized)
+            }
+        }
+
+        let value = parse("> `foo` = 42").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_struct_variant(Unexpected::Unsigned(42))
+        );
+
+        let value = parse("> = `foo`").unwrap();
+
+        assert_eq!(
+            from_value::<TestDeserialized>(value.into_value()).unwrap_err(),
+            Error::de_expected_struct_variant(Unexpected::UnitVariant)
+        );
     }
 }
