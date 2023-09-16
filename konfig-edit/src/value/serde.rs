@@ -231,7 +231,7 @@ mod tests {
         ok! { json!(null) => Value::Null }
         ok! { json!(true) => Value::Bool(true) }
         ok! { json!(false) => Value::Bool(false) }
-        ok! { json!(42.42e+3) =>  Value::Float(42.42e+3) }
+        ok! { json!(42.42e+3) => Value::Float(42.42e+3) }
         ok! { json!(-42) => Value::Int(-42) }
         ok! { json!(42) => Value::UInt(42) }
         ok! { json!("hello") => Value::String("hello".into()) }

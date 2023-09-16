@@ -1,7 +1,7 @@
-konfig = { SOI ~ ( docs | expr+ | NEWLINE | SPACE )* ~ EOI }
+konfig = { SOI ~ ( expr+ | docs )* ~ EOI }
 
-docs = @{ !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator }
 expr = { path ~ INDENTATION ~ "=" ~ SPACE* ~ rhs ~ expr_terminator }
+docs = { ( !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator ) | NEWLINE+ }
 
 // NOTE: at least new lines are required to break quotation in markdown
 expr_terminator = @{ 

@@ -1,6 +1,5 @@
 use indoc::indoc;
-use konfig::parser::parse;
-use konfig::value::Value;
+use konfig::value::{Value, ValueCell};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -45,14 +44,17 @@ where
     }
 }
 
+#[track_caller]
+fn parse(input: &str) -> ValueCell {
+    match konfig::parse(input) {
+        Ok(parsed) => parsed,
+        Err(err) => panic!("\n{}", err),
+    }
+}
+
 macro_rules! ok {
     ($input:expr => $($expected:tt)+) => {{
-        let parsed = match parse($input) {
-            Ok(parsed) => parsed,
-            Err(err) => panic!("\n{}", err)
-        };
-
-        let actual = AstValue::from(parsed);
+        let actual = AstValue::from(parse($input));
         let expected = ron::from_str::<AstValue>(stringify!( $($expected)+)).unwrap();
 
         assert_eq!(actual, expected);
@@ -61,7 +63,7 @@ macro_rules! ok {
 
 macro_rules! err {
     ($input:expr => $expected:expr) => {
-        let actual = parse($input).unwrap_err().to_string();
+        let actual = konfig::parse($input).unwrap_err().to_string();
         let expected = indoc!($expected);
 
         assert_eq!(
@@ -781,4 +783,105 @@ fn reassignment() {
         |
         = path item has incompatible type with the previously specified values"
     }
+}
+
+#[test]
+fn empty_input() {
+    err! {
+        "" =>
+        " --> 1:1
+        |
+      1 | 
+        | ^
+        |
+        = konfig should contain some expressions" 
+    };
+
+    err! {
+        "        " =>
+        " --> 1:8
+        |
+      1 |         
+        |        ^
+        |
+        = konfig should contain some expressions" 
+    };
+
+    err! {
+        indoc! {"
+            # Greetings!
+
+            We have lots of docs *here*, but
+            no
+                    assignments
+            whatsoever.
+
+            - Sorry
+        "} =>
+        " --> 8:8
+        |
+      8 | - Sorry
+        |        ^
+        |
+        = konfig should contain some expressions" 
+    };
+}
+
+#[test]
+fn lexical_info_docs() {
+    let value = parse(include_str!("./data/doc_parsing.konfig.md"));
+
+    let expected = stringify! {
+        Struct({
+            "foo": Sequence([
+                UInt(1),
+                Struct({
+                    "bar": UInt(2),
+                    "baz": Float(3.0)
+                }),
+                String("4"),
+                UnitVariant("five"),
+                Sequence([UInt(6)])
+            ])
+        })
+    };
+
+    let expected = ron::from_str::<AstValue>(expected).unwrap();
+
+    assert_eq!(AstValue::from(value.clone()), expected);
+
+    assert_eq!(
+        value["foo"][0].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/1.md")
+    );
+
+    assert_eq!(
+        value["foo"][1]["bar"].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/2.md")
+    );
+
+    assert_eq!(
+        value["foo"][1]["baz"].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/3.md")
+    );
+
+    assert_eq!(
+        value["foo"][2].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/4.md")
+    );
+
+    assert_eq!(
+        value["foo"][3].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/5.md")
+    );
+
+    assert_eq!(
+        value["foo"][4].lexical_info().docs_before,
+        include_str!("./data/expected/doc_chunks/6.md")
+    );
+
+    assert_eq!(
+        value["foo"][4].lexical_info().docs_after,
+        include_str!("./data/expected/doc_chunks/7.md")
+    );
 }

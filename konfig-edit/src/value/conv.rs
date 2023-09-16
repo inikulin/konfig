@@ -3,6 +3,9 @@ use crate::error::Error;
 use crate::parser::parse;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
+use std::mem;
+use std::ptr;
+use std::rc::Rc;
 use std::str::FromStr;
 
 impl Value {
@@ -157,6 +160,21 @@ impl Value {
 
     pub fn is_variant(&self) -> bool {
         self.as_variant().is_some()
+    }
+}
+
+impl From<ValueCell> for Value {
+    fn from(cell: ValueCell) -> Self {
+        #[cfg(debug_assertions)]
+        super::value_cell::safety_checks::assert_not_parsing();
+
+        // SAFETY: it's guaranteed that `ValueCell` has exclusive ownership of the `Value` when
+        // parsing is complete.
+        let ref_cell = unsafe { ptr::read(Rc::as_ptr(&cell.0)) };
+
+        mem::forget(cell.0);
+
+        ref_cell.into_inner().value
     }
 }
 

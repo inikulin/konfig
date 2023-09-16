@@ -1,11 +1,13 @@
 use super::error::{parse_error, IntoParseResult, ParseResult};
 use super::insertion_point::InsertionPoint;
 use super::path_item::PathItem;
-use super::{Ast, LexicalInfo};
+use super::Context;
 use crate::value::{Value, ValueCell};
 use pest_consume::{match_nodes, Parser as PestParser};
+use std::cell::RefCell;
+use std::rc::Rc;
 
-pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Ast>;
+pub(super) type Node<'i> = pest_consume::Node<'i, Rule, Rc<RefCell<Context>>>;
 
 #[derive(PestParser)]
 #[grammar = "./parser/grammar.pest"]
@@ -27,7 +29,7 @@ impl Parser {
     }
 
     pub(super) fn primitive(node: Node) -> ParseResult<ValueCell> {
-        let value = match_nodes! {
+        Ok(match_nodes! {
             node.children();
             [null(_)] => Value::Null,
             [boolean(v)] => Value::Bool(v),
@@ -38,16 +40,8 @@ impl Parser {
             [double_quoted_string(v)] => Value::String(v),
             [raw_string(v)] => Value::String(v),
             [enum_variant(v)] => Value::UnitVariant(v.to_string()),
-        };
-
-        Ok(ValueCell::new(
-            value,
-            LexicalInfo {
-                is_inline_seq: false,
-                docs_before: "".into(),
-                docs_after: "".into(),
-            },
-        ))
+        })
+        .map(Into::into)
     }
 
     pub(super) fn pos_int(node: Node) -> ParseResult<u64> {
@@ -146,22 +140,27 @@ impl Parser {
             }
         }
 
-        Ok(ValueCell::new(
-            Value::Sequence(seq),
-            LexicalInfo {
-                is_inline_seq: true,
-                docs_before: "".into(),
-                docs_after: "".into(),
-            },
-        ))
+        let value = ValueCell::from(Value::Sequence(seq));
+
+        value.borrow_mut().lexical_info.is_inline_seq = true;
+
+        Ok(value)
     }
 
     pub(super) fn rhs(node: Node) -> ParseResult<ValueCell> {
-        Ok(match_nodes! {
+        let value = match_nodes! {
             node.children();
             [primitive(v)] => v,
             [sequence_of_primitives(s)] => s,
-        })
+        };
+
+        let mut ctx = node.user_data().borrow_mut();
+
+        ctx.last_rhs = Some(value.rc_clone());
+
+        value.borrow_mut().lexical_info.docs_before = ctx.pending_docs.take().unwrap_or_default();
+
+        Ok(value)
     }
 
     pub(super) fn enum_variant(node: Node) -> ParseResult<&str> {
@@ -216,7 +215,7 @@ impl Parser {
 
     pub(super) fn expr(node: Node) -> ParseResult<()> {
         let span = node.as_span();
-        let ast = node.user_data();
+        let ctx = node.user_data();
 
         let (mut path, mut new_value) = match_nodes! {
             node.children();
@@ -226,8 +225,9 @@ impl Parser {
             ),
         };
 
-        let insertion_point = ast
+        let insertion_point = ctx
             .borrow()
+            .root
             .as_ref()
             .map(|root| InsertionPoint::find(&mut path, span, root.rc_clone()))
             .transpose()?;
@@ -240,7 +240,7 @@ impl Parser {
 
         match insertion_point {
             Some(insertion_point) => insertion_point.insert(new_value)?,
-            None => *ast.borrow_mut() = Some(new_value),
+            None => ctx.borrow_mut().root = Some(new_value),
         }
 
         Ok(())
@@ -248,7 +248,20 @@ impl Parser {
 
     pub(super) fn konfig(node: Node) -> ParseResult<()> {
         node.into_children()
-            .filter(|n| n.as_rule() == Rule::expr)
+            .filter(|node| match node.as_rule() {
+                Rule::expr => true,
+                Rule::docs => {
+                    let ctx = node.user_data();
+
+                    ctx.borrow_mut()
+                        .pending_docs
+                        .get_or_insert_with(String::new)
+                        .push_str(node.as_str());
+
+                    false
+                }
+                _ => false,
+            })
             .try_for_each(Parser::expr)
     }
 }

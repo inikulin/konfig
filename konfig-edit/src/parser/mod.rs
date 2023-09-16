@@ -3,44 +3,60 @@ mod imp;
 mod insertion_point;
 mod path_item;
 
-use self::error::{rename_rules, ParseError, ParseResult};
+use self::error::{parse_error, rename_rules, ParseError, ParseResult};
 use self::imp::{Node, Parser, Rule};
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::value::ValueCell;
 use pest::Span;
 use pest_consume::Parser as _;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-type Ast = Rc<RefCell<Option<ValueCell>>>;
+#[derive(Default)]
+struct Context {
+    root: Option<ValueCell>,
+    last_rhs: Option<ValueCell>,
+    pending_docs: Option<String>,
+}
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct LexicalInfo {
-    is_inline_seq: bool,
-    docs_before: String,
-    docs_after: String,
+    pub is_inline_seq: bool,
+    pub docs_before: String,
+    pub docs_after: String,
 }
 
 pub fn parse(input: &str) -> Result<ValueCell> {
     #[cfg(debug_assertions)]
-    let _guard = crate::value::value_cell_safety_checks::ParsingGuard::new();
+    let _guard = crate::value::value_cell::safety_checks::ParsingGuard::new();
 
-    let ast = Rc::new(RefCell::new(None));
+    let ctx = Default::default();
 
-    parse_rule(Rule::konfig, input, Rc::clone(&ast))
+    parse_rule(Rule::konfig, input, Rc::clone(&ctx))
         .and_then(Parser::konfig)
-        .map_err(Box::new)
-        .map_err(ParseError)
-        .map_err(Error::Parsing)?;
+        .map_err(ParseError::wrap)?;
 
-    let mut ast_mut = ast.borrow_mut();
+    let mut ctx = ctx.borrow_mut();
 
-    Ok(ast_mut.take().unwrap())
+    let Some(last_rhs) = ctx.last_rhs.take() else {
+        let end = input.len().saturating_sub(1);
+
+        return Err(ParseError::wrap(parse_error!(
+            Span::new(input, end, end).unwrap(),
+            "konfig should contain some expressions"
+        )));
+    };
+
+    if let Some(docs) = ctx.pending_docs.take() {
+        last_rhs.borrow_mut().lexical_info.docs_after = docs;
+    }
+
+    Ok(ctx.root.take().unwrap())
 }
 
 #[allow(clippy::result_large_err)]
-fn parse_rule(rule: Rule, input: &str, ast: Ast) -> ParseResult<Node> {
-    Parser::parse_with_userdata(rule, input, ast)
+fn parse_rule(rule: Rule, input: &str, context: Rc<RefCell<Context>>) -> ParseResult<Node> {
+    Parser::parse_with_userdata(rule, input, context)
         .map_err(rename_rules)
         .and_then(|p| p.single())
 }
@@ -55,9 +71,9 @@ mod tests {
     macro_rules! parse {
         ($rule:ident $input:expr) => {{
             #[cfg(debug_assertions)]
-            let _guard = crate::value::value_cell_safety_checks::ParsingGuard::new();
+            let _guard = crate::value::value_cell::safety_checks::ParsingGuard::new();
 
-            parse_rule(Rule::$rule, $input, Rc::new(RefCell::new(None))).and_then(Parser::$rule)
+            parse_rule(Rule::$rule, $input, Default::default()).and_then(Parser::$rule)
         }};
     }
 

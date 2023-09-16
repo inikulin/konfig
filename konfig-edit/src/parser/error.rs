@@ -3,24 +3,17 @@ use pest::Span;
 use pest_consume::Error as PestError;
 use std::fmt;
 
-macro_rules! parse_error {
-    ($span:expr, $msg:literal) => {
-        parse_error!($span, $msg,)
-    };
-
-    ($span:expr, $msg:literal, $($arg:expr),*) => {
-        pest_consume::Error::new_from_span(pest::error::ErrorVariant::CustomError {
-            message: format!($msg, $($arg),*),
-        }, $span.clone())
-    }
-}
-
-pub(super) use parse_error;
-
 pub(super) type ParseResult<T> = std::result::Result<T, PestError<Rule>>;
 
+// NOTE: a wrapper type to not expose `Rule` in the public API.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct ParseError(pub(super) Box<PestError<Rule>>);
+pub struct ParseError(Box<PestError<Rule>>);
+
+impl ParseError {
+    pub(super) fn wrap(err: PestError<Rule>) -> crate::error::Error {
+        crate::error::Error::Parsing(ParseError(Box::new(err)))
+    }
+}
 
 impl fmt::Display for ParseError {
     #[inline]
@@ -91,3 +84,17 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
         }.into()
     })
 }
+
+macro_rules! parse_error {
+    ($span:expr, $msg:literal) => {
+        parse_error!($span, $msg,)
+    };
+
+    ($span:expr, $msg:literal, $($arg:expr),*) => {
+        pest_consume::Error::new_from_span(pest::error::ErrorVariant::CustomError {
+            message: format!($msg, $($arg),*),
+        }, $span.clone())
+    }
+}
+
+pub(super) use parse_error;

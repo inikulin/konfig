@@ -25,7 +25,7 @@ impl<'i> PathItem<'i> {
             )),
             PathItem::EnumVariant(variant) => Ok(Value::Variant(variant.to_string(), prev)),
         }
-        .map(|v| ValueCell::new(v, Default::default()))
+        .map(Into::into)
     }
 
     pub(super) fn index_value(

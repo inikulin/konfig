@@ -4760,7 +4760,7 @@ fn serialize_config(src: &str, expected: &str) {
 fn cfg1() {
     serialize_config(
         include_str!("data/k8s_cfg1.src.yaml"),
-        include_str!("data/expected/k8s_cfg1.k.md"),
+        include_str!("data/expected/k8s_cfg1.konfig.md"),
     );
 }
 
@@ -4768,6 +4768,6 @@ fn cfg1() {
 fn cfg2() {
     serialize_config(
         include_str!("data/k8s_cfg2.src.yaml"),
-        include_str!("data/expected/k8s_cfg2.k.md"),
+        include_str!("data/expected/k8s_cfg2.konfig.md"),
     );
 }
