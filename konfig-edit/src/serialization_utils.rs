@@ -1,75 +1,44 @@
-use konfig_edit::error::{Error, Result};
+use crate::error::{Error, Result};
+use std::fmt::{self, Write};
 
-pub(super) trait Float: ryu::Float {
-    fn is_finite(self) -> bool;
-}
-
-impl Float for f32 {
-    #[inline]
-    fn is_finite(self) -> bool {
-        f32::is_finite(self)
-    }
-}
-
-impl Float for f64 {
-    #[inline]
-    fn is_finite(self) -> bool {
-        f64::is_finite(self)
-    }
-}
-
-pub(super) fn write_escaped_str(out: &mut String, v: &str) {
-    let mut start = 0;
-
-    out.push('"');
-
-    for (i, c) in v.char_indices() {
-        if let Some(esc) = escape_char(c) {
-            if start < i {
-                out.push_str(&v[start..i]);
-            }
-
-            out.push_str(esc);
-            start = i + 1;
-        }
-    }
-
-    if start < v.len() {
-        out.push_str(&v[start..]);
-    }
-
-    out.push('"');
-}
-
-#[inline]
-pub(crate) fn write_int(out: &mut String, v: impl itoa::Integer) {
+pub fn write_int(out: &mut impl Write, v: impl itoa::Integer) -> fmt::Result {
     let mut buffer = itoa::Buffer::new();
 
-    out.push_str(buffer.format(v));
+    out.write_str(buffer.format(v))
 }
 
-pub(super) fn write_float(out: &mut String, v: impl Float) -> Result<()> {
+pub fn write_float(out: &mut impl Write, v: f64) -> Result<()> {
     if !v.is_finite() {
         return Err(Error::InfAndNanNotSupported);
     }
 
     let mut buffer = ryu::Buffer::new();
 
-    out.push_str(buffer.format_finite(v));
+    out.write_str(buffer.format_finite(v))
+        .map_err(Error::custom)?;
 
     Ok(())
 }
 
-pub(super) fn make_map_key(
-    key_serializer: impl FnOnce(&mut String) -> Result<()>,
-) -> Result<String> {
-    let mut key = String::with_capacity(16);
+pub fn write_escaped_str(out: &mut impl Write, v: &str) -> fmt::Result {
+    let mut start = 0;
 
-    key.push('[');
-    key_serializer(&mut key)?;
-    key.push(']');
+    for (i, c) in v.char_indices() {
+        if let Some(esc) = escape_char(c) {
+            if start < i {
+                out.write_str(&v[start..i])?;
+            }
 
-    Ok(key)
+            out.write_str(esc)?;
+            start = i + 1;
+        }
+    }
+
+    if start < v.len() {
+        out.write_str(&v[start..])?;
+    }
+
+    Ok(())
 }
 
 fn escape_char(c: char) -> Option<&'static str> {

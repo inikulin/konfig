@@ -26,6 +26,6 @@ jobs:
       - name: Build test feature combinations
         run: RUSTFLAGS="-D warnings" cargo hack check --feature-powerset --no-dev-deps
       - name: Run tests
-        run: RUSTFLAGS="-D warnings" cargo tarpaulin --out Xml
+        run: RUSTFLAGS="-D warnings" cargo tarpaulin --out xml
       - name: Upload to codecov
         run: bash <(curl -s https://codecov.io/bash)

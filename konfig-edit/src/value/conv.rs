@@ -1,6 +1,7 @@
 use super::{Value, ValueCell};
 use crate::error::Error;
 use crate::parser::parse;
+use indexmap::IndexMap;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::mem;
@@ -23,28 +24,28 @@ impl Value {
         }
     }
 
-    pub fn as_map(&self) -> Option<&HashMap<String, ValueCell>> {
+    pub fn as_map(&self) -> Option<&IndexMap<String, ValueCell>> {
         match self {
             Value::Map(v) => Some(v),
             _ => None,
         }
     }
 
-    pub fn as_map_mut(&mut self) -> Option<&mut HashMap<String, ValueCell>> {
+    pub fn as_map_mut(&mut self) -> Option<&mut IndexMap<String, ValueCell>> {
         match self {
             Value::Map(ref mut v) => Some(v),
             _ => None,
         }
     }
 
-    pub fn as_struct(&self) -> Option<&HashMap<String, ValueCell>> {
+    pub fn as_struct(&self) -> Option<&IndexMap<String, ValueCell>> {
         match self {
             Value::Struct(v) => Some(v),
             _ => None,
         }
     }
 
-    pub fn as_struct_mut(&mut self) -> Option<&mut HashMap<String, ValueCell>> {
+    pub fn as_struct_mut(&mut self) -> Option<&mut IndexMap<String, ValueCell>> {
         match self {
             Value::Struct(ref mut v) => Some(v),
             _ => None,
@@ -207,6 +208,20 @@ where
     V: Into<Value>,
 {
     fn from(val: HashMap<K, V>) -> Value {
+        Value::Map(
+            val.into_iter()
+                .map(|(k, v)| (k.into(), ValueCell::from(v.into())))
+                .collect(),
+        )
+    }
+}
+
+impl<K, V> From<IndexMap<K, V>> for Value
+where
+    K: Into<String> + Hash + Eq,
+    V: Into<Value>,
+{
+    fn from(val: IndexMap<K, V>) -> Value {
         Value::Map(
             val.into_iter()
                 .map(|(k, v)| (k.into(), ValueCell::from(v.into())))

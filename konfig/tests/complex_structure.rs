@@ -25,7 +25,7 @@ struct ComplexData {
     numbers: Vec<usize>,
 
     /// A floating-point value.
-    float: f32,
+    float: f64,
 
     /// A string value.
     string: String,
@@ -73,7 +73,7 @@ enum ValueEnum {
     Integer(i32),
 
     /// A floating-point value.
-    Float(f32),
+    Float(f64),
 
     /// A string value.
     String(String),

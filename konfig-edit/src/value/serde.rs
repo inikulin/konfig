@@ -1,6 +1,6 @@
 use super::Value;
 use crate::error::Error;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::fmt;
 
 impl serde::Serialize for Value {
@@ -133,7 +133,7 @@ impl<'de> serde::de::Visitor<'de> for ValueVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
-        let mut map = HashMap::with_capacity(visitor.size_hint().unwrap_or(0));
+        let mut map = IndexMap::with_capacity(visitor.size_hint().unwrap_or(0));
 
         while let Some((key, value)) = visitor.next_entry::<String, Value>()? {
             map.insert(key, value.into());

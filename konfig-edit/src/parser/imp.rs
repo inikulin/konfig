@@ -1,8 +1,7 @@
 use super::error::{parse_error, IntoParseResult, ParseResult};
-use super::insertion_point::InsertionPoint;
-use super::path_item::PathItem;
+use super::insertion_point::{path_item_to_value, InsertionPoint};
 use super::Context;
-use crate::value::{Value, ValueCell};
+use crate::value::{PathItem, Value, ValueCell};
 use pest_consume::{match_nodes, Parser as PestParser};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -191,10 +190,10 @@ impl Parser {
     pub(super) fn path_item(node: Node) -> ParseResult<PathItem> {
         Ok(match_nodes! {
             node.children();
-            [field_name(n)] => PathItem::FieldName(n),
-            [enum_variant(v)] => PathItem::EnumVariant(v),
-            [map_key(k)] => PathItem::MapKey(k),
-            [index(i)] => PathItem::Index(i)
+            [field_name(n)] => PathItem::StructFieldName(n),
+            [enum_variant(v)] => PathItem::VariantName(v),
+            [map_key(k)] => PathItem::MapKey(k.into()),
+            [index(i)] => PathItem::SequenceIndex(i)
         })
     }
 
@@ -234,8 +233,9 @@ impl Parser {
 
         for node in path.rev() {
             let span = node.as_span();
+            let path_item = Parser::path_item(node)?;
 
-            new_value = Parser::path_item(node)?.into_value(new_value, span)?;
+            new_value = path_item_to_value(path_item, new_value, span)?;
         }
 
         match insertion_point {

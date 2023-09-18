@@ -1,10 +1,10 @@
 use super::{Value, ValueCell};
 use crate::error::{Error, Result};
+use indexmap::IndexMap;
 use serde::de::IntoDeserializer;
 use serde::de::Unexpected;
 use serde::de::{Deserialize, DeserializeSeed, Visitor};
 use serde::forward_to_deserialize_any;
-use std::collections::hash_map::{self, HashMap};
 use std::vec;
 
 pub fn from_value<'a, T>(value: Value) -> Result<T>
@@ -93,7 +93,7 @@ where
     }
 }
 
-fn deserialize_map<'de, V>(elems: HashMap<String, ValueCell>, visitor: V) -> Result<V::Value>
+fn deserialize_map<'de, V>(elems: IndexMap<String, ValueCell>, visitor: V) -> Result<V::Value>
 where
     V: Visitor<'de>,
 {
@@ -140,7 +140,7 @@ impl<'de> serde::de::SeqAccess<'de> for SeqDeserializer {
 
 struct MapDeserializer {
     len: usize,
-    iter: hash_map::IntoIter<String, ValueCell>,
+    iter: indexmap::map::IntoIter<String, ValueCell>,
     next_value: Option<ValueCell>,
 }
 

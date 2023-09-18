@@ -12,8 +12,22 @@ pub enum Error {
     InfAndNanNotSupported,
     #[error("{0}")]
     Parsing(ParseError),
+    #[error("merge conflict at path: {path}")]
+    MergeConflict { path: String },
+    #[error("invalid field name or enum variant: {0}")]
+    InvalidFieldNameOrEnumVariant(String),
     #[error("{0}")]
     Custom(String),
+}
+
+impl Error {
+    #[inline]
+    pub(crate) fn custom<T>(msg: T) -> Self
+    where
+        T: std::fmt::Display,
+    {
+        Self::Custom(msg.to_string())
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -60,7 +74,7 @@ impl serde::ser::Error for Error {
     where
         T: std::fmt::Display,
     {
-        Self::Custom(msg.to_string())
+        Self::custom(msg)
     }
 }
 
@@ -70,6 +84,6 @@ impl serde::de::Error for Error {
     where
         T: std::fmt::Display,
     {
-        Self::Custom(msg.to_string())
+        Self::custom(msg)
     }
 }

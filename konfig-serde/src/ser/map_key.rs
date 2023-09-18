@@ -1,122 +1,102 @@
-use super::utils;
 use konfig_edit::error::{Error, Result};
 use serde::ser::{Impossible, Serialize};
+use std::borrow::Cow;
 
-pub(crate) struct MapKeySerializer<'o> {
-    out: &'o mut String,
-}
+pub(crate) struct MapKeySerializer;
 
-impl<'o> MapKeySerializer<'o> {
-    pub(crate) fn serialize(v: impl Serialize) -> Result<String> {
-        utils::make_map_key(|key| v.serialize(MapKeySerializer { out: key }))
-    }
-}
-
-impl<'o> serde::Serializer for MapKeySerializer<'o> {
-    type Ok = ();
+impl serde::Serializer for MapKeySerializer {
+    type Ok = Cow<'static, str>;
     type Error = Error;
-    type SerializeSeq = Impossible<(), Error>;
-    type SerializeTuple = Impossible<(), Error>;
-    type SerializeTupleStruct = Impossible<(), Error>;
-    type SerializeTupleVariant = Impossible<(), Error>;
-    type SerializeMap = Impossible<(), Error>;
-    type SerializeStruct = Impossible<(), Error>;
-    type SerializeStructVariant = Impossible<(), Error>;
+    type SerializeSeq = Impossible<Self::Ok, Error>;
+    type SerializeTuple = Impossible<Self::Ok, Error>;
+    type SerializeTupleStruct = Impossible<Self::Ok, Error>;
+    type SerializeTupleVariant = Impossible<Self::Ok, Error>;
+    type SerializeMap = Impossible<Self::Ok, Error>;
+    type SerializeStruct = Impossible<Self::Ok, Error>;
+    type SerializeStructVariant = Impossible<Self::Ok, Error>;
 
     #[inline]
-    fn serialize_bool(self, v: bool) -> Result<()> {
-        self.out.push_str(if v { "\"true\"" } else { "\"false\"" });
-
-        Ok(())
+    fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
+        Ok(if v { "true" } else { "false" }.into())
     }
 
     #[inline]
-    fn serialize_i8(self, v: i8) -> Result<()> {
+    fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
         self.serialize_i64(v.into())
     }
 
     #[inline]
-    fn serialize_i16(self, v: i16) -> Result<()> {
+    fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
         self.serialize_i64(v.into())
     }
 
     #[inline]
-    fn serialize_i32(self, v: i32) -> Result<()> {
+    fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
         self.serialize_i64(v.into())
     }
 
     #[inline]
-    fn serialize_i64(self, v: i64) -> Result<()> {
-        self.out.push('"');
-        utils::write_int(self.out, v);
-        self.out.push('"');
-
-        Ok(())
+    fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
+        Ok(v.to_string().into())
     }
 
     #[inline]
-    fn serialize_i128(self, _v: i128) -> Result<()> {
+    fn serialize_i128(self, _v: i128) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_u8(self, v: u8) -> Result<()> {
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
         self.serialize_u64(v.into())
     }
 
     #[inline]
-    fn serialize_u16(self, v: u16) -> Result<()> {
+    fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
         self.serialize_u64(v.into())
     }
 
     #[inline]
-    fn serialize_u32(self, v: u32) -> Result<()> {
+    fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
         self.serialize_u64(v.into())
     }
 
     #[inline]
-    fn serialize_u64(self, v: u64) -> Result<()> {
-        self.out.push('"');
-        utils::write_int(self.out, v);
-        self.out.push('"');
-
-        Ok(())
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
+        Ok(v.to_string().into())
     }
 
     #[inline]
-    fn serialize_u128(self, _v: u128) -> Result<()> {
+    fn serialize_u128(self, _v: u128) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_f32(self, _v: f32) -> Result<()> {
+    fn serialize_f32(self, _v: f32) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_f64(self, _v: f64) -> Result<()> {
+    fn serialize_f64(self, _v: f64) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_char(self, v: char) -> Result<()> {
+    fn serialize_char(self, v: char) -> Result<Self::Ok> {
         self.serialize_str(&v.to_string())
     }
 
     #[inline]
-    fn serialize_str(self, v: &str) -> Result<()> {
-        utils::write_escaped_str(self.out, v);
-
-        Ok(())
+    fn serialize_str(self, v: &str) -> Result<Self::Ok> {
+        Ok(v.to_string().into())
     }
 
     #[inline]
-    fn serialize_none(self) -> Result<()> {
+    fn serialize_none(self) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_some<T>(self, value: &T) -> Result<()>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + Serialize,
     {
@@ -124,12 +104,12 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
     }
 
     #[inline]
-    fn serialize_unit(self) -> Result<()> {
+    fn serialize_unit(self) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
     #[inline]
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 
@@ -139,16 +119,12 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
         _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
-    ) -> Result<()> {
-        self.out.push('"');
-        self.out.push_str(variant);
-        self.out.push('"');
-
-        Ok(())
+    ) -> Result<Self::Ok> {
+        Ok(variant.into())
     }
 
     #[inline]
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + Serialize,
     {
@@ -162,7 +138,7 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
         _variant_index: u32,
         _variant: &'static str,
         _value: &T,
-    ) -> Result<()>
+    ) -> Result<Self::Ok>
     where
         T: ?Sized + Serialize,
     {
@@ -175,7 +151,7 @@ impl<'o> serde::Serializer for MapKeySerializer<'o> {
     }
 
     #[inline]
-    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
+    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok> {
         Err(Error::InvalidMapKeyType)
     }
 

@@ -27,4 +27,3 @@ serde = { workspace = true }
 indoc = { workspace = true }
 serde_yaml = { workspace = true }
 ron = { workspace = true }
-indexmap = { workspace = true }

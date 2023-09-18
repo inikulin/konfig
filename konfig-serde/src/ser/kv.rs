@@ -22,7 +22,9 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.inner.push_path(MapKeySerializer::serialize(key)?);
+        self.inner
+            .path
+            .push_map_key(key.serialize(MapKeySerializer)?);
 
         Ok(())
     }
@@ -33,7 +35,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     {
         value.serialize(&mut *self.inner)?;
 
-        self.inner.pop_path();
+        self.inner.path.pop();
 
         Ok(())
     }
@@ -52,7 +54,7 @@ impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.inner.push_path(key);
+        self.inner.path.push_struct_field_name(key);
 
         serde::ser::SerializeMap::serialize_value(self, value)
     }
@@ -77,7 +79,7 @@ impl<'s, 'o> serde::ser::SerializeStructVariant for KVSerializer<'s, 'o> {
 
     #[inline]
     fn end(self) -> Result<()> {
-        self.inner.pop_path();
+        self.inner.path.pop();
         Ok(())
     }
 }

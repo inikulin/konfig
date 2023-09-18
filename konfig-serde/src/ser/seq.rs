@@ -1,6 +1,5 @@
 use super::is_primitive::is_primitive;
 use super::kv::KVSerializer;
-use super::utils;
 use super::Serializer;
 use konfig_edit::error::{Error, Result};
 use serde::ser::Serialize;
@@ -30,10 +29,10 @@ impl<'s, 'o> SeqRepresentation<'s, 'o> {
             .iter()
             .enumerate()
             .try_for_each(|(idx, value)| {
-                push_path_for_idx(serializer, idx)?;
-                serializer.serialize_path();
+                serializer.path.push_sequence_index(idx);
+                serializer.serialize_path()?;
                 serializer.out.push_str(value);
-                serializer.pop_path();
+                serializer.path.pop();
 
                 Ok(())
             })?;
@@ -60,17 +59,19 @@ impl<'s, 'o> SeqSerializer<'s, 'o> {
         }
     }
 
-    fn ensure_inline_repr_serialized(&mut self) {
+    fn ensure_inline_repr_serialized(&mut self) -> Result<()> {
         if let SeqRepresentation::Inline {
             inner: Some(ref mut inner),
             ref mut serialized_primitives,
         } = self.repr
         {
-            inner.serialize_path();
+            inner.serialize_path()?;
             inner.out.push('[');
             inner.out.push_str(&serialized_primitives.join(", "));
             inner.out.push(']');
         }
+
+        Ok(())
     }
 }
 
@@ -98,7 +99,7 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
         }
 
         if let SeqRepresentation::Kv(ref mut inner) = self.repr {
-            push_path_for_idx(inner.inner, self.current_index)?;
+            inner.inner.path.push_sequence_index(self.current_index);
             serde::ser::SerializeMap::serialize_value(inner, value)?;
         }
 
@@ -107,10 +108,9 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
         Ok(())
     }
 
+    #[inline]
     fn end(mut self) -> Result<()> {
-        self.ensure_inline_repr_serialized();
-
-        Ok(())
+        self.ensure_inline_repr_serialized()
     }
 }
 
@@ -162,7 +162,7 @@ impl<'s, 'o> serde::ser::SerializeTupleVariant for SeqSerializer<'s, 'o> {
     }
 
     fn end(mut self) -> Result<()> {
-        self.ensure_inline_repr_serialized();
+        self.ensure_inline_repr_serialized()?;
 
         let inner = match self.repr {
             SeqRepresentation::Inline {
@@ -172,7 +172,7 @@ impl<'s, 'o> serde::ser::SerializeTupleVariant for SeqSerializer<'s, 'o> {
             _ => unreachable!(),
         };
 
-        inner.pop_path();
+        inner.path.pop();
 
         Ok(())
     }
@@ -189,15 +189,4 @@ where
     value.serialize(&mut serializer)?;
 
     Ok(out)
-}
-
-fn push_path_for_idx(serializer: &mut Serializer, idx: usize) -> Result<()> {
-    let key = utils::make_map_key(|key| {
-        utils::write_int(key, idx);
-        Ok(())
-    })?;
-
-    serializer.push_path(key);
-
-    Ok(())
 }

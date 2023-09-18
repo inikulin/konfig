@@ -1,8 +1,8 @@
 use super::{Value, ValueCell};
 use crate::error::{Error, Result};
+use indexmap::IndexMap;
 use serde::ser::Impossible;
 use serde::Serialize;
-use std::collections::HashMap;
 
 pub fn to_value<T>(input: &T) -> Result<Value>
 where
@@ -204,7 +204,7 @@ impl serde::Serializer for Serializer {
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         Ok(ValueMapSerializer {
-            items: HashMap::with_capacity(len.unwrap_or(0)),
+            items: IndexMap::with_capacity(len.unwrap_or(0)),
             next_key: None,
         })
     }
@@ -224,7 +224,7 @@ impl serde::Serializer for Serializer {
         Ok(ValueStructVariantSerializer {
             variant: variant.to_string(),
             struct_serializer: ValueMapSerializer {
-                items: HashMap::with_capacity(len),
+                items: IndexMap::with_capacity(len),
                 next_key: None,
             },
         })
@@ -316,7 +316,7 @@ impl serde::ser::SerializeTupleVariant for ValueTupleVariantSerializer {
 }
 
 pub struct ValueMapSerializer {
-    items: HashMap<String, ValueCell>,
+    items: IndexMap<String, ValueCell>,
     next_key: Option<String>,
 }
 

@@ -1,6 +1,6 @@
 use indoc::indoc;
 use konfig::error::Error;
-use konfig::Value;
+use konfig::{Value, ValueCell};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ffi::CString;
@@ -27,7 +27,11 @@ macro_rules! ok {
         let value = konfig::to_value(&$rust);
 
         assert_eq!(value, expected_to_value, "to_value");
-        assert_eq!(konfig::from_value(value.unwrap()), Ok($rust), "from_value");
+
+        let value = value.unwrap();
+
+        assert_eq!(ValueCell::from(value.clone()).to_konfig(), Ok($kfg.to_string()), "to_konfig");
+        assert_eq!(konfig::from_value(value), Ok($rust), "from_value");
         assert_eq!(konfig::from_str($kfg), Ok($rust), "deserialize to Rust value");
     };
 }
@@ -161,42 +165,17 @@ fn u128_val() {
 
 #[test]
 fn f32_val() {
+    // NOTE: f32 looses precision on conversion to f64. This is by design.
     ok! { 3.0f32 => "> = 3.0" }
-
-    ok! {
-        3.1f32 => "> = 3.1",
-        expected_to_value: Value::Float(3.1f32.into())
-    }
-
+    ok! { 3.1f32 => "> = 3.0999999046325684" }
     ok! { -1.5f32 => "> = -1.5" }
-
-    ok! {
-        0.5f32 => "> = 0.5",
-        expected_to_value: Value::Float(0.5f32.into())
-    }
-
-    ok! {
-        0.5e-3f32 => "> = 0.0005",
-        expected_to_value: Value::Float(0.0005f32.into())
-    }
-
+    ok! { 0.5f32 => "> = 0.5" }
+    ok! { 0.5e-3f32 => "> = 0.0005000000237487257" }
     ok! { 0.5e+3f32 => "> = 500.0" }
     ok! { 0f32 => "> = 0.0" }
-
-    ok! {
-        f32::MIN => "> = -3.4028235e38",
-        expected_to_value: Value::Float(f32::MIN.into())
-    }
-
-    ok! {
-        f32::MAX => "> = 3.4028235e38",
-        expected_to_value: Value::Float(f32::MAX.into())
-    }
-
-    ok! {
-        f32::EPSILON => "> = 1.1920929e-7",
-        expected_to_value: Value::Float(f32::EPSILON.into())
-    }
+    ok! { f32::MIN => "> = -3.4028234663852886e38" }
+    ok! { f32::MAX => "> = 3.4028234663852886e38" }
+    ok! { f32::EPSILON => "> = 1.1920928955078125e-7" }
 
     ser_err! { f32::INFINITY => Error::InfAndNanNotSupported }
     ser_err! { f32::NEG_INFINITY => Error::InfAndNanNotSupported }
@@ -398,12 +377,17 @@ fn seq_val() {
             > [1] > `Compound` = [2]\
         "}
     }
+
+    ok! { vec![-3, -4, -5] => "> = [-3, -4, -5]" }
+    ok! { vec![(), (), ()] => "> = [null, null, null]" }
+    ok! { vec![true, false, true] => "> = [true, false, true]" }
+    ok! { vec![3.5, 4.5, 5.5] => "> = [3.5, 4.5, 5.5]" }
 }
 
 #[test]
 fn bytes_val() {
     ok! {
-        CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [0x01, 0x20, 0x3F]"
+        CString::new([0x01, 0x20, 0x3f]).unwrap() => "> = [1, 32, 63]"
     }
 }
 

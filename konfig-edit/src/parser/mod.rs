@@ -1,7 +1,6 @@
 pub(crate) mod error;
 mod imp;
 mod insertion_point;
-mod path_item;
 
 use self::error::{parse_error, rename_rules, ParseError, ParseResult};
 use self::imp::{Node, Parser, Rule};
@@ -63,9 +62,8 @@ fn parse_rule(rule: Rule, input: &str, context: Rc<RefCell<Context>>) -> ParseRe
 
 #[cfg(test)]
 mod tests {
-    use super::path_item::PathItem;
     use super::*;
-    use crate::value::Value;
+    use crate::value::{PathItem, Value};
     use indoc::indoc;
 
     macro_rules! parse {
@@ -614,9 +612,9 @@ mod tests {
 
     #[test]
     fn parse_path_item() {
-        ok! { path_item "foo_bar" => PathItem::FieldName("foo_bar") }
-        ok! { path_item "`FooBar`" => PathItem::EnumVariant("FooBar") }
-        ok! { path_item "[42]" => PathItem::Index(42) }
+        ok! { path_item "foo_bar" => PathItem::StructFieldName("foo_bar") }
+        ok! { path_item "`FooBar`" => PathItem::VariantName("FooBar") }
+        ok! { path_item "[42]" => PathItem::SequenceIndex(42) }
         ok! { path_item "[\"foobar\"]" => PathItem::MapKey("foobar".into()) }
         ok! { path_item "['foobar']" => PathItem::MapKey("foobar".into()) }
     }

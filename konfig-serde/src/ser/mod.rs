@@ -3,7 +3,6 @@ mod kv;
 mod map_key;
 mod seq;
 mod serializer;
-pub(crate) mod utils;
 
 use konfig_edit::error::Result;
 use serde::ser::Serialize;
