@@ -109,7 +109,7 @@ fn index_value_by_path_item(
             Ok(map.get::<str>(key).map(ValueCell::rc_clone))
         }
         (PathItem::StructFieldName(name), Value::Struct(fields)) => {
-            Ok(fields.get(*name).map(ValueCell::rc_clone))
+            Ok(fields.get::<str>(name).map(ValueCell::rc_clone))
         }
         (PathItem::VariantName(var1), Value::Variant(var2, value)) if var1 == var2 => {
             Ok(Some(value.rc_clone()))

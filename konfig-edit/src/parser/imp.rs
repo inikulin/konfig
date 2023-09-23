@@ -190,8 +190,8 @@ impl Parser {
     pub(super) fn path_item(node: Node) -> ParseResult<PathItem> {
         Ok(match_nodes! {
             node.children();
-            [field_name(n)] => PathItem::StructFieldName(n),
-            [enum_variant(v)] => PathItem::VariantName(v),
+            [field_name(n)] => PathItem::StructFieldName(n.into()),
+            [enum_variant(v)] => PathItem::VariantName(v.into()),
             [map_key(k)] => PathItem::MapKey(k.into()),
             [index(i)] => PathItem::SequenceIndex(i)
         })

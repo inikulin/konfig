@@ -6,8 +6,8 @@ use std::fmt::{self, Write};
 pub enum PathItem<'i> {
     SequenceIndex(usize),
     MapKey(Cow<'i, str>),
-    StructFieldName(&'i str),
-    VariantName(&'i str),
+    StructFieldName(Cow<'i, str>),
+    VariantName(Cow<'i, str>),
 }
 
 impl PathItem<'_> {
@@ -70,13 +70,13 @@ impl<'i> Path<'i> {
     }
 
     #[inline]
-    pub fn push_struct_field_name(&mut self, name: &'i str) {
-        self.push(PathItem::StructFieldName(name));
+    pub fn push_struct_field_name(&mut self, name: impl Into<Cow<'i, str>>) {
+        self.push(PathItem::StructFieldName(name.into()));
     }
 
     #[inline]
-    pub fn push_variant_name(&mut self, name: &'i str) {
-        self.push(PathItem::VariantName(name))
+    pub fn push_variant_name(&mut self, name: impl Into<Cow<'i, str>>) {
+        self.push(PathItem::VariantName(name.into()))
     }
 
     pub fn write(&self, out: &mut impl Write) -> fmt::Result {

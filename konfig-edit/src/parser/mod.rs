@@ -612,8 +612,8 @@ mod tests {
 
     #[test]
     fn parse_path_item() {
-        ok! { path_item "foo_bar" => PathItem::StructFieldName("foo_bar") }
-        ok! { path_item "`FooBar`" => PathItem::VariantName("FooBar") }
+        ok! { path_item "foo_bar" => PathItem::StructFieldName("foo_bar".into()) }
+        ok! { path_item "`FooBar`" => PathItem::VariantName("FooBar".into()) }
         ok! { path_item "[42]" => PathItem::SequenceIndex(42) }
         ok! { path_item "[\"foobar\"]" => PathItem::MapKey("foobar".into()) }
         ok! { path_item "['foobar']" => PathItem::MapKey("foobar".into()) }
