@@ -11,16 +11,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docs_rs"]
 
 [features]
-default = ["serde"]
-
-serde = [
-    "konfig-edit/serde",
-    "dep:konfig-serde",
-]
+default = ["serde", "macros"]
+serde = ["konfig-edit/serde", "dep:konfig-serde"]
+macros = ["dep:konfig-macros"]
 
 [dependencies]
 konfig-edit = { workspace = true }
 konfig-serde = { workspace = true, optional = true }
+konfig-macros = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }

@@ -37,3 +37,6 @@ pub use konfig_edit::error::{Error, ParseError, Result};
 
 #[doc(inline)]
 pub use konfig_edit::parser::parse;
+
+#[cfg(feature = "macros")]
+pub use konfig_macros::konfig;

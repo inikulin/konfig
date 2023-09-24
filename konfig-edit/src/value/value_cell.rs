@@ -35,6 +35,16 @@ impl ValueCell {
     }
 
     #[inline]
+    pub fn as_value(&self) -> &Value {
+        self
+    }
+
+    #[inline]
+    pub fn as_value_mut(&mut self) -> &mut Value {
+        &mut *self
+    }
+
+    #[inline]
     pub fn lexical_info(&self) -> &LexicalInfo {
         &self.internal().lexical_info
     }

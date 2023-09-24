@@ -2,6 +2,7 @@
 members = [
     "konfig",
     "konfig-edit",
+    "konfig-macros",
     "konfig-serde"
 ]
 resolver = "2"
@@ -15,6 +16,7 @@ authors = ["Ivan Nikulin <ivan@nikulin.engineering>"]
 [workspace.dependencies]
 konfig-edit = { version = "1", path = "./konfig-edit" }
 konfig-serde = { version = "1", path = "./konfig-serde" }
+konfig-macros = { version = "1", path = "./konfig-macros" }
 
 serde = { version = "^1.0.100", features = ["derive"] }
 itoa = { version = "1" }
@@ -24,6 +26,9 @@ pest_consume = "1.0"
 pest = "2.1"
 indexmap = { version = "2.0" }
 indoc = "2.0"
+proc-macro2 = "1.0"
 serde_yaml = "0.9"
 serde_json = "1.0"
+syn = { version = "2.0", features = ["parsing"] }
+quote = "1.0"
 ron = "0.8"
