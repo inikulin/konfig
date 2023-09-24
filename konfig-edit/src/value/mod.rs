@@ -1,7 +1,6 @@
 mod conv;
 mod index;
 mod path;
-mod to_konfig;
 
 #[cfg(feature = "serde")]
 mod to_value;

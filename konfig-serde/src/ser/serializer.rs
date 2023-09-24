@@ -1,7 +1,7 @@
 use super::kv::KVSerializer;
 use super::seq::SeqSerializer;
 use konfig_edit::error::{Error, Result};
-use konfig_edit::serialization_utils::{write_escaped_str, write_float, write_int};
+use konfig_edit::serializer::components::{write_escaped_str, write_float, write_int};
 use konfig_edit::value::Path;
 use serde::ser::Serialize;
 

@@ -7,15 +7,14 @@ pub use konfig_edit::error;
 pub use konfig_edit::parser;
 
 #[doc(inline)]
+pub use konfig_edit::serializer;
+
+#[doc(inline)]
 pub use konfig_edit::value;
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
-pub use konfig_serde::ser;
-
-#[doc(inline)]
-#[cfg(feature = "serde")]
-pub use konfig_serde::de;
+pub use konfig_serde as serde;
 
 #[doc(inline)]
 pub use self::value::{Value, ValueCell};
@@ -26,17 +25,16 @@ pub use konfig_edit::value::{from_value, to_value};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
-pub use konfig_serde::ser::{to_string, Serializer};
-
-#[doc(inline)]
-#[cfg(feature = "serde")]
-pub use konfig_serde::de::{from_str, Deserializer};
+pub use konfig_serde::{from_str, to_string, Deserializer, Serializer};
 
 #[doc(inline)]
 pub use konfig_edit::error::{Error, ParseError, Result};
 
 #[doc(inline)]
 pub use konfig_edit::parser::parse;
+
+#[doc(inline)]
+pub use konfig_edit::serializer::serialize;
 
 #[cfg(feature = "macros")]
 pub use konfig_macros::konfig;

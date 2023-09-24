@@ -1,37 +1,50 @@
-use super::{Path, Value, ValueCell};
+pub mod components;
+pub mod formatting;
+
+use self::components::{escape_docs, write_escaped_str, write_float, write_int};
+use self::formatting::FormattingOptions;
 use crate::error::{Error, Result};
-use crate::serialization_utils::{write_escaped_str, write_float, write_int};
+use crate::value::{Path, Value, ValueCell};
 use indexmap::IndexMap;
 
-impl ValueCell {
-    pub fn to_konfig(&self) -> Result<String> {
-        let mut serializer = KonfigSerializer::default();
+pub fn serialize(value: &ValueCell, formatting: FormattingOptions) -> Result<String> {
+    let mut serializer = KonfigSerializer {
+        out: Default::default(),
+        path: Default::default(),
+        have_docs_after: false,
+        formatting,
+    };
 
-        serializer.serialize(self)?;
+    serializer.serialize(value)?;
 
-        // NOTE: trim last expression separator. It's much simpler to implement it this way,
-        // even though it's not the most elegant approach.s
-        if !serializer.have_docs_after {
-            let removed = (serializer.out.pop(), serializer.out.pop());
+    // NOTE: trim last expression separator. It's much simpler to implement it this way,
+    // even though it's not the most elegant approach.s
+    if !serializer.have_docs_after {
+        let removed = (serializer.out.pop(), serializer.out.pop());
 
-            debug_assert_eq!(removed, (Some('\n'), Some('\n')));
-        }
-
-        Ok(serializer.out)
+        debug_assert_eq!(removed, (Some('\n'), Some('\n')));
     }
+
+    Ok(serializer.out)
 }
 
-#[derive(Default)]
 struct KonfigSerializer<'v> {
     out: String,
     path: Path<'v>,
     have_docs_after: bool,
+    formatting: FormattingOptions,
 }
 
 impl<'v> KonfigSerializer<'v> {
     fn serialize(&mut self, value: &'v ValueCell) -> Result<()> {
         self.have_docs_after = false;
-        self.out.push_str(&value.lexical_info().docs_before);
+
+        let docs_before = &value.lexical_info().docs_before;
+
+        self.out.push_str(&escape_docs(
+            docs_before,
+            self.formatting.doc_line_escape.as_ref(),
+        ));
 
         match **value {
             Value::Null => self.write_rhs_infallible(|s| s.write_null()),
@@ -50,8 +63,14 @@ impl<'v> KonfigSerializer<'v> {
             Value::Variant(ref n, ref v) => self.serialize_variant(n, v),
         }?;
 
-        if !value.lexical_info().docs_after.is_empty() {
-            self.out.push_str(&value.lexical_info().docs_after);
+        let docs_after = &value.lexical_info().docs_after;
+
+        if !docs_after.is_empty() {
+            self.out.push_str(&escape_docs(
+                docs_after,
+                self.formatting.doc_line_escape.as_ref(),
+            ));
+
             self.have_docs_after = true;
         }
 

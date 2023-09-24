@@ -2,7 +2,5 @@
 
 pub mod error;
 pub mod parser;
+pub mod serializer;
 pub mod value;
-
-#[doc(hidden)]
-pub mod serialization_utils;

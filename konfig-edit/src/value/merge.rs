@@ -7,15 +7,15 @@ use std::mem;
 use std::result::Result as StdResult;
 
 pub trait MergeConflictResolver<E> {
-    fn resolve(&mut self, path: &Path, current: Value, other: Value) -> StdResult<Value, E>;
+    fn resolve(&self, path: &Path, current: Value, other: Value) -> StdResult<Value, E>;
 }
 
 impl<F, E> MergeConflictResolver<E> for F
 where
-    F: FnMut(&Path, Value, Value) -> StdResult<Value, E>,
+    F: Fn(&Path, Value, Value) -> StdResult<Value, E>,
 {
     #[inline]
-    fn resolve(&mut self, path: &Path, current: Value, other: Value) -> StdResult<Value, E> {
+    fn resolve(&self, path: &Path, current: Value, other: Value) -> StdResult<Value, E> {
         (self)(path, current, other)
     }
 }
@@ -24,12 +24,7 @@ pub struct PreferCurrentOnConflict;
 
 impl MergeConflictResolver<Infallible> for PreferCurrentOnConflict {
     #[inline]
-    fn resolve(
-        &mut self,
-        _path: &Path,
-        current: Value,
-        _other: Value,
-    ) -> StdResult<Value, Infallible> {
+    fn resolve(&self, _path: &Path, current: Value, _other: Value) -> StdResult<Value, Infallible> {
         Ok(current)
     }
 }
@@ -38,12 +33,7 @@ pub struct PreferOtherOnConflict;
 
 impl MergeConflictResolver<Infallible> for PreferOtherOnConflict {
     #[inline]
-    fn resolve(
-        &mut self,
-        _path: &Path,
-        _current: Value,
-        other: Value,
-    ) -> StdResult<Value, Infallible> {
+    fn resolve(&self, _path: &Path, _current: Value, other: Value) -> StdResult<Value, Infallible> {
         Ok(other)
     }
 }
@@ -52,7 +42,7 @@ pub struct ErrorOnConflict;
 
 impl MergeConflictResolver<Error> for ErrorOnConflict {
     #[inline]
-    fn resolve(&mut self, path: &Path, _current: Value, _other: Value) -> Result<Value> {
+    fn resolve(&self, path: &Path, _current: Value, _other: Value) -> Result<Value> {
         Err(Error::MergeConflict {
             path: path.to_string(),
         })
@@ -204,21 +194,25 @@ mod tests {
             let current = crate::parser::parse(indoc!($current)).unwrap();
             let other = crate::parser::parse(indoc!($other)).unwrap();
 
-            let actual_prefer_current = current
-                .clone()
-                .merge(PreferCurrentOnConflict, other.clone())
-                .unwrap()
-                .into_cell()
-                .to_konfig()
-                .unwrap();
+            let actual_prefer_current = crate::serializer::serialize(
+                &current
+                    .clone()
+                    .merge(PreferCurrentOnConflict, other.clone())
+                    .unwrap()
+                    .into_cell(),
+                Default::default(),
+            )
+            .unwrap();
 
-            let actual_prefer_other = current
-                .clone()
-                .merge(PreferOtherOnConflict, other.clone())
-                .unwrap()
-                .into_cell()
-                .to_konfig()
-                .unwrap();
+            let actual_prefer_other = crate::serializer::serialize(
+                &current
+                    .clone()
+                    .merge(PreferOtherOnConflict, other.clone())
+                    .unwrap()
+                    .into_cell(),
+                Default::default(),
+            )
+            .unwrap();
 
             let actual_error = current.clone().merge(ErrorOnConflict, other.clone()).err();
 

@@ -1,6 +1,6 @@
 use indoc::indoc;
 use konfig::error::Error;
-use konfig::{Value, ValueCell};
+use konfig::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ffi::CString;
@@ -12,7 +12,7 @@ macro_rules! ok {
         assert_eq!(
             konfig::to_string(&$rust),
             Ok(kfg.to_string()),
-            "serialize Rust value"
+            "serde serialize Rust value"
         );
 
         #[allow(unused_mut, unused_assignments)]
@@ -33,9 +33,15 @@ macro_rules! ok {
         let value = value.unwrap();
 
         assert_eq!(konfig::konfig!($kfg), konfig::parse(kfg).unwrap(), "konfig! macro");
-        assert_eq!(ValueCell::from(value.clone()).to_konfig(), Ok(kfg.to_string()), "to_konfig");
+
+        assert_eq!(
+            konfig::serialize(&value.clone().into_cell(), Default::default()),
+            Ok(kfg.to_string()),
+            "serialize (non-serde)"
+        );
+
         assert_eq!(konfig::from_value(value), Ok($rust), "from_value");
-        assert_eq!(konfig::from_str($kfg), Ok($rust), "deserialize to Rust value");
+        assert_eq!(konfig::from_str($kfg), Ok($rust), "serde deserialize to Rust value");
     };
 }
 

@@ -1,4 +1,6 @@
+use super::formatting::DocLineEscape;
 use crate::error::{Error, Result};
+use std::borrow::Cow;
 use std::fmt::{self, Write};
 
 pub fn write_int(out: &mut impl Write, v: impl itoa::Integer) -> fmt::Result {
@@ -39,6 +41,46 @@ pub fn write_escaped_str(out: &mut impl Write, v: &str) -> fmt::Result {
     }
 
     Ok(())
+}
+
+pub fn escape_docs<'d>(docs: &'d str, escape: &dyn DocLineEscape) -> Cow<'d, str> {
+    let mut out = Cow::Borrowed(docs);
+
+    'line_iter: for (line_idx, line) in docs.lines().enumerate() {
+        for (idx, ch) in line.chars().enumerate() {
+            if ch == ' ' || ch == '\t' {
+                continue;
+            }
+
+            if ch == '>' {
+                if matches!(out, Cow::Borrowed(_)) {
+                    out = docs
+                        .lines()
+                        .take(line_idx)
+                        .fold(String::new(), |a, b| a + b + "\n")
+                        .into();
+                }
+
+                let mut line = line.to_owned();
+                let out = out.to_mut();
+
+                escape.escape(&mut line, idx);
+                out.push_str(&line);
+                out.push('\n');
+
+                continue 'line_iter;
+            }
+
+            break;
+        }
+
+        if let Cow::Owned(ref mut out) = out {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+
+    out
 }
 
 fn escape_char(c: char) -> Option<&'static str> {

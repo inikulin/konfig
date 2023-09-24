@@ -1,4 +1,4 @@
-use konfig_edit::serialization_utils::write_float;
+use konfig_edit::serializer::components::write_float;
 use konfig_edit::value::{Value, ValueCell};
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};

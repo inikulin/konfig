@@ -50,8 +50,8 @@ impl ValueCell {
     }
 
     #[inline]
-    pub fn lexical_info_mut(&mut self) -> &LexicalInfo {
-        &self.internal_mut().lexical_info
+    pub fn lexical_info_mut(&mut self) -> &mut LexicalInfo {
+        &mut self.internal_mut().lexical_info
     }
 
     #[inline]

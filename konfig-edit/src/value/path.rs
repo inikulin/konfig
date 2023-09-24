@@ -1,4 +1,4 @@
-use crate::serialization_utils::{write_escaped_str, write_int};
+use crate::serializer::components::{write_escaped_str, write_int};
 use std::borrow::Cow;
 use std::fmt::{self, Write};
 
