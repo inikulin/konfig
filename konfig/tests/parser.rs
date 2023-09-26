@@ -374,6 +374,36 @@ fn sequence_of_primitives_spacing() {
         ])
     }
 
+    ok! {
+        "> = [
+            'foo', 'bar',
+            'baz',
+            'qux',
+        ]" =>
+        Sequence([
+            String("foo"),
+            String("bar"),
+            String("baz"),
+            String("qux"),
+        ])
+    }
+
+    err! {
+        "> = [
+            'foo', 'bar',
+            'baz',
+
+            
+            'qux',
+        ]" =>
+        " --> 4:1
+        |
+      4 | ␊
+        | ^---
+        |
+        = expected primitive value"
+    }
+
     err! {
         "> = [\n1\n\n]" =>
         " --> 2:1
