@@ -211,19 +211,22 @@ fn assignment_spacing() {
         })
     }
 
-    ok! {
+    err! {
         "> foo  \n =  42" =>
-        Struct({
-            "foo": UInt(42)
-        })
+        " --> 1:1
+        |
+      1 | > foo  
+        | ^---
+        |
+        = expected expression"
     }
 
     err! {
-        "   > foo   \n   =   \n   42" =>
-        " --> 2:8
+        "   > foo   =   \n   42" =>
+        " --> 1:16
         |
-      2 |    =   ␊
-        |        ^---
+      1 |    > foo   =   ␊
+        |                ^---
         |
         = expected assignment right hand side"
     }
@@ -342,7 +345,7 @@ fn assignment_spacing() {
 }
 
 #[test]
-fn sequence_of_primitives_spacing() {
+fn array_of_primitives_spacing() {
     ok! {
         "> = [ \n  1.3e+10,  'foo',true \n  , 42  \n, \n ]" =>
         Sequence([
@@ -436,7 +439,7 @@ fn sequence_of_primitives_spacing() {
 }
 
 #[test]
-fn empty_sequence_of_primitives_spacing() {
+fn empty_array_of_primitives_spacing() {
     ok! {
         "> = []" =>
         Sequence([])

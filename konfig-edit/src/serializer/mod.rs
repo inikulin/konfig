@@ -54,9 +54,7 @@ impl<'v> KonfigSerializer<'v> {
             Value::Float(v) => self.write_rhs(|s| write_float(&mut s.out, v)),
             Value::String(ref v) => self.write_rhs(|s| s.write_string(v)),
             Value::UnitVariant(ref v) => self.write_rhs(|s| s.write_unit_variant(v)),
-            Value::Sequence(ref v) if is_all_primitive(v) => {
-                self.serialize_sequence_of_primitives(v)
-            }
+            Value::Sequence(ref v) if is_all_primitive(v) => self.serialize_array_of_primitives(v),
             Value::Sequence(ref v) => self.serialize_sequence(v),
             Value::Map(ref v) => self.serialize_map(v),
             Value::Struct(ref v) => self.serialize_struct(v),
@@ -114,7 +112,7 @@ impl<'v> KonfigSerializer<'v> {
         Ok(())
     }
 
-    fn serialize_sequence_of_primitives(&mut self, seq: &'v [ValueCell]) -> Result<()> {
+    fn serialize_array_of_primitives(&mut self, seq: &'v [ValueCell]) -> Result<()> {
         let last = seq.len().saturating_sub(1);
 
         self.path.write(&mut self.out).map_err(Error::custom)?;

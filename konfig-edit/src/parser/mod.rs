@@ -431,12 +431,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_sequence_of_primitives() {
-        ok! { sequence_of_primitives "[ ]" => Value::Sequence(vec![]) }
-        ok! { sequence_of_primitives "[ \n ]" => Value::Sequence(vec![]) }
+    fn parse_array_of_primitives() {
+        ok! { array_of_primitives "[ ]" => Value::Sequence(vec![]) }
+        ok! { array_of_primitives "[ \n ]" => Value::Sequence(vec![]) }
 
         ok! {
-            sequence_of_primitives "[ 41 ,  \n 42, 43, ]" =>
+            array_of_primitives "[ 41 ,  \n 42, 43, ]" =>
             Value::Sequence(vec![
                 Value::UInt(41).into(),
                 Value::UInt(42).into(),
@@ -445,7 +445,7 @@ mod tests {
         }
 
         ok! {
-            sequence_of_primitives "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
+            array_of_primitives "[null, true, 42, -42, 42.42, \"foo bar\", 'baz qux']" =>
             Value::Sequence(vec![
                 Value::Null.into(),
                 Value::Bool(true).into(),
@@ -457,7 +457,7 @@ mod tests {
             ])
         }
 
-        err! { sequence_of_primitives "[ , ]" =>
+        err! { array_of_primitives "[ , ]" =>
             " --> 1:3
             |
           1 | [ , ]
@@ -466,7 +466,7 @@ mod tests {
             = expected primitive value"
         }
 
-        err! { sequence_of_primitives "[ true, nottrue ]" =>
+        err! { array_of_primitives "[ true, nottrue ]" =>
             " --> 1:9
             |
           1 | [ true, nottrue ]

@@ -1,6 +1,6 @@
 konfig = { SOI ~ ( expr+ | docs )* ~ EOI }
 
-expr = { path ~ INDENTATION ~ "=" ~ SPACE* ~ rhs ~ expr_terminator }
+expr = { path ~ SPACE* ~ "=" ~ SPACE* ~ rhs ~ expr_terminator }
 docs = { ( !path_start ~ ( !docs_terminator ~ ANY )+ ~ docs_terminator ) | NEWLINE+ }
 
 // NOTE: at least new lines are required to break quotation in markdown
@@ -34,11 +34,11 @@ index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 
 // RHS
 //--------------------------------------------------------------------------------------------
-rhs = { sequence_of_primitives | primitive }
+rhs = { array_of_primitives | primitive }
 
-sequence_of_primitives = { "[" ~ (sequence_of_primitives_values | INDENTATION) ~ "]" }
+array_of_primitives = { "[" ~ (array_of_primitives_values | INDENTATION) ~ "]" }
 
-sequence_of_primitives_values = {
+array_of_primitives_values = {
     INDENTATION ~ primitive ~ INDENTATION ~ 
     ( "," ~ INDENTATION ~ primitive ~ INDENTATION )* ~ 
     ("," ~ INDENTATION)? 
