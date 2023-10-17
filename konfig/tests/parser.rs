@@ -532,16 +532,67 @@ fn parse_path_item() {
 }
 
 #[test]
+fn malformed_list_of_primitives() {
+    err! {
+        indoc!{r"
+            > foo =
+            >  - 123
+        "} =>
+        " --> 1:8
+        |
+      1 | > foo =␊
+        |        ^---
+        |
+        = expected assignment right hand side"
+    }
+
+    err! {
+        indoc!{r"
+            > foo =
+            > - 1
+            > -
+            > - 2
+        "} =>
+        " --> 3:4
+        |
+      3 | > -␊
+        |    ^---
+        |
+        = expected primitive value"
+    }
+
+    err! {
+        indoc!{r"
+            > foo =
+            > - 1 > bar = 3
+        "} =>
+        " --> 2:7
+        |
+      2 | > - 1 > bar = 3
+        |       ^---
+        |
+        = expected double new line or end of input"
+    }
+}
+
+#[test]
 fn parse_rhs() {
     ok! {
         indoc! {r#"
             > enum_variant = `Foo`
 
-            > seq_of_primitives = [
+            > array_of_primitives = [
                 "foo", 'bar',
                 1, 2.3e1,
                 null
             ]
+
+            > list_of_primitives =
+            >-"foo"
+            > -'bar'
+            > - 1
+            > - 2.3e1
+            > - null
 
             > null = null
 
@@ -572,7 +623,14 @@ fn parse_rhs() {
 
         "#} => Struct({
             "enum_variant": UnitVariant("Foo"),
-            "seq_of_primitives": Sequence([
+            "array_of_primitives": Sequence([
+                String("foo"),
+                String("bar"),
+                UInt(1),
+                Float(2.3e1),
+                Null
+            ]),
+            "list_of_primitives": Sequence([
                 String("foo"),
                 String("bar"),
                 UInt(1),

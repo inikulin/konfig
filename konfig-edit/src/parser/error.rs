@@ -58,7 +58,9 @@ pub(super) fn rename_rules(err: PestError<Rule>) -> PestError<Rule> {
             Rule::esc => "escape sequence",
             Rule::esc_alias => "`\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t`",
             Rule::esc_unicode => "unicode character escape sequence",
-            Rule::array_of_primitives | Rule::array_of_primitives_values => "sequence of primitive values",
+            Rule::array_of_primitives
+            | Rule::array_of_primitives_values
+            | Rule::list_of_primitives => "sequence of primitive values",
             Rule::rhs => "assignment right hand side",
             Rule::index | Rule::index_digits => "sequence index",
             Rule::field_name => "field name",

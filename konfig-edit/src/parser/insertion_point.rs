@@ -101,7 +101,7 @@ fn index_value_by_path_item(
 
     match (path_item, &value_cell_ref.value) {
         (PathItem::SequenceIndex(idx), Value::Sequence(seq))
-            if !value_cell_ref.lexical_info.is_inline_seq =>
+            if !value_cell_ref.lexical_info.is_rhs_seq =>
         {
             Ok(seq.get(*idx).map(ValueCell::rc_clone))
         }

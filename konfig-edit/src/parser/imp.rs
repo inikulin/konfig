@@ -131,19 +131,15 @@ impl Parser {
     }
 
     pub(super) fn array_of_primitives(node: Node) -> ParseResult<ValueCell> {
-        let mut seq = Vec::new();
-
-        if let Ok(values) = node.children().single() {
-            for node in values.children() {
-                seq.push(Parser::primitive(node)?);
-            }
+        match node.children().single() {
+            Ok(values) => parse_seq_of_primitives(&mut values.children()),
+            _ => parse_seq_of_primitives(&mut [].into_iter()),
         }
+    }
 
-        let value = ValueCell::from(Value::Sequence(seq));
-
-        value.borrow_mut().lexical_info.is_inline_seq = true;
-
-        Ok(value)
+    #[inline]
+    pub(super) fn list_of_primitives(node: Node) -> ParseResult<ValueCell> {
+        parse_seq_of_primitives(&mut node.children())
     }
 
     pub(super) fn rhs(node: Node) -> ParseResult<ValueCell> {
@@ -151,6 +147,7 @@ impl Parser {
             node.children();
             [primitive(v)] => v,
             [array_of_primitives(s)] => s,
+            [list_of_primitives(s)] => s
         };
 
         let mut ctx = node.user_data().borrow_mut();
@@ -282,4 +279,21 @@ fn parse_quoted_string(node: Node, text_rule: Rule) -> ParseResult<String> {
     }
 
     Ok(string)
+}
+
+#[allow(clippy::result_large_err)]
+pub(super) fn parse_seq_of_primitives<'i>(
+    primitive_nodes: &mut impl Iterator<Item = Node<'i>>,
+) -> ParseResult<ValueCell> {
+    let mut seq = Vec::new();
+
+    for node in primitive_nodes {
+        seq.push(Parser::primitive(node)?);
+    }
+
+    let value = ValueCell::from(Value::Sequence(seq));
+
+    value.borrow_mut().lexical_info.is_rhs_seq = true;
+
+    Ok(value)
 }

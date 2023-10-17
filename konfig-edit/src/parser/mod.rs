@@ -20,7 +20,7 @@ struct Context {
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct LexicalInfo {
-    pub is_inline_seq: bool,
+    pub is_rhs_seq: bool,
     pub docs_before: String,
     pub docs_after: String,
 }
@@ -427,6 +427,19 @@ mod tests {
             |       ^---
             |
             = expected single quoted string or escape sequence"#
+        }
+    }
+
+    #[test]
+    fn parse_list_of_primitives() {
+        ok! {
+            list_of_primitives "\n> -1\n> - '2'\n>- `three`\n   >--4.0" =>
+            Value::Sequence(vec![
+                Value::UInt(1).into(),
+                Value::String("2".into()).into(),
+                Value::UnitVariant("three".into()).into(),
+                Value::Float(-4.0).into()
+            ])
         }
     }
 

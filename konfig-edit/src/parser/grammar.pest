@@ -34,7 +34,7 @@ index_digits = ${ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
 
 // RHS
 //--------------------------------------------------------------------------------------------
-rhs = { array_of_primitives | primitive }
+rhs = { list_of_primitives | array_of_primitives | primitive }
 
 array_of_primitives = { "[" ~ (array_of_primitives_values | INDENTATION) ~ "]" }
 
@@ -44,6 +44,7 @@ array_of_primitives_values = {
     ("," ~ INDENTATION)? 
 }
 
+list_of_primitives= { (NEWLINE ~ SPACE* ~ ">" ~ SPACE? ~ "-" ~ SPACE* ~ primitive ~ SPACE*)+ }
 
 // Primitives
 //--------------------------------------------------------------------------------------------
