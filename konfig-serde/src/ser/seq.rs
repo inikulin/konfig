@@ -29,7 +29,7 @@ impl<'s, 'o> SeqRepresentation<'s, 'o> {
             .iter()
             .enumerate()
             .try_for_each(|(idx, value)| {
-                serializer.path.push_sequence_index(idx);
+                serializer.path.push_sequence_index(idx, Default::default());
                 serializer.serialize_path()?;
                 serializer.out.push_str(value);
                 serializer.path.pop();
@@ -99,7 +99,11 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
         }
 
         if let SeqRepresentation::Kv(ref mut inner) = self.repr {
-            inner.inner.path.push_sequence_index(self.current_index);
+            inner
+                .inner
+                .path
+                .push_sequence_index(self.current_index, Default::default());
+            
             serde::ser::SerializeMap::serialize_value(inner, value)?;
         }
 

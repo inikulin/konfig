@@ -7,15 +7,15 @@ use std::mem;
 use std::result::Result as StdResult;
 
 pub trait MergeConflictResolver<E> {
-    fn resolve(&self, path: &Path, current: Value, other: Value) -> StdResult<Value, E>;
+    fn resolve(&self, path: &Path<()>, current: Value, other: Value) -> StdResult<Value, E>;
 }
 
 impl<F, E> MergeConflictResolver<E> for F
 where
-    F: Fn(&Path, Value, Value) -> StdResult<Value, E>,
+    F: Fn(&Path<()>, Value, Value) -> StdResult<Value, E>,
 {
     #[inline]
-    fn resolve(&self, path: &Path, current: Value, other: Value) -> StdResult<Value, E> {
+    fn resolve(&self, path: &Path<()>, current: Value, other: Value) -> StdResult<Value, E> {
         (self)(path, current, other)
     }
 }
@@ -24,7 +24,12 @@ pub struct PreferCurrentOnConflict;
 
 impl MergeConflictResolver<Infallible> for PreferCurrentOnConflict {
     #[inline]
-    fn resolve(&self, _path: &Path, current: Value, _other: Value) -> StdResult<Value, Infallible> {
+    fn resolve(
+        &self,
+        _path: &Path<()>,
+        current: Value,
+        _other: Value,
+    ) -> StdResult<Value, Infallible> {
         Ok(current)
     }
 }
@@ -33,7 +38,12 @@ pub struct PreferOtherOnConflict;
 
 impl MergeConflictResolver<Infallible> for PreferOtherOnConflict {
     #[inline]
-    fn resolve(&self, _path: &Path, _current: Value, other: Value) -> StdResult<Value, Infallible> {
+    fn resolve(
+        &self,
+        _path: &Path<()>,
+        _current: Value,
+        other: Value,
+    ) -> StdResult<Value, Infallible> {
         Ok(other)
     }
 }
@@ -42,7 +52,7 @@ pub struct ErrorOnConflict;
 
 impl MergeConflictResolver<Error> for ErrorOnConflict {
     #[inline]
-    fn resolve(&self, path: &Path, _current: Value, _other: Value) -> Result<Value> {
+    fn resolve(&self, path: &Path<()>, _current: Value, _other: Value) -> Result<Value> {
         Err(Error::MergeConflict {
             path: path.to_string(),
         })
@@ -75,7 +85,7 @@ impl ValueCell {
 }
 
 struct Merge<R, E> {
-    path: Path<'static>,
+    path: Path<'static, ()>,
     conflict_resolver: R,
     _conflict_err_ty: PhantomData<E>,
 }
@@ -93,7 +103,7 @@ where
                 Value::Variant(current_name, current_value),
                 Value::Variant(other_name, other_value),
             ) if current_name == other_name => {
-                self.path.push_variant_name(current_name.to_string());
+                self.path.push_variant_name(current_name.to_string(), ());
 
                 let resolved = self
                     .merge_values(current_value.into(), other_value.into())?
@@ -104,10 +114,10 @@ where
                 Ok(Value::Variant(current_name, resolved))
             }
             (Value::Map(current), Value::Map(other)) => self
-                .merge_maps(current, other, |p, k| p.push_map_key(k))
+                .merge_maps(current, other, |p, k| p.push_map_key(k, ()))
                 .map(Value::Map),
             (Value::Struct(current), Value::Struct(other)) => self
-                .merge_maps(current, other, |p, n| p.push_struct_field_name(n))
+                .merge_maps(current, other, |p, n| p.push_struct_field_name(n, ()))
                 .map(Value::Struct),
             (current, other) => self.conflict_resolver.resolve(&self.path, current, other),
         }
@@ -126,7 +136,7 @@ where
 
         for (i, src_value) in src.into_iter().enumerate() {
             if dst[i] != src_value {
-                self.path.push_sequence_index(i);
+                self.path.push_sequence_index(i, ());
 
                 let dst_value = mem::replace(&mut dst[i], Value::Null.into());
 
@@ -153,7 +163,7 @@ where
         &mut self,
         mut current: IndexMap<String, ValueCell>,
         other: IndexMap<String, ValueCell>,
-        push_path: impl Fn(&mut Path, String),
+        push_path: impl Fn(&mut Path<()>, String),
     ) -> StdResult<IndexMap<String, ValueCell>, E> {
         for (other_key, other_value) in other {
             match current.get_mut(&other_key) {

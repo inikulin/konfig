@@ -41,42 +41,42 @@ impl fmt::Display for PathItem<'_> {
 }
 
 #[derive(Debug, PartialEq, Default)]
-pub struct Path<'i>(Vec<PathItem<'i>>);
+pub struct Path<'i, M>(Vec<(PathItem<'i>, M)>);
 
-impl<'i> Path<'i> {
+impl<'i, M> Path<'i, M> {
     #[inline]
-    pub fn items(&self) -> &[PathItem] {
+    pub fn items(&self) -> &[(PathItem, M)] {
         &self.0
     }
 
     #[inline]
-    pub fn push(&mut self, item: PathItem<'i>) {
-        self.0.push(item);
+    pub fn push(&mut self, item: PathItem<'i>, meta: M) {
+        self.0.push((item, meta));
     }
 
     #[inline]
-    pub fn pop(&mut self) -> Option<PathItem> {
+    pub fn pop(&mut self) -> Option<(PathItem, M)> {
         self.0.pop()
     }
 
     #[inline]
-    pub fn push_sequence_index(&mut self, idx: usize) {
-        self.push(PathItem::SequenceIndex(idx));
+    pub fn push_sequence_index(&mut self, idx: usize, meta: M) {
+        self.push(PathItem::SequenceIndex(idx), meta);
     }
 
     #[inline]
-    pub fn push_map_key(&mut self, key: impl Into<Cow<'i, str>>) {
-        self.push(PathItem::MapKey(key.into()));
+    pub fn push_map_key(&mut self, key: impl Into<Cow<'i, str>>, meta: M) {
+        self.push(PathItem::MapKey(key.into()), meta);
     }
 
     #[inline]
-    pub fn push_struct_field_name(&mut self, name: impl Into<Cow<'i, str>>) {
-        self.push(PathItem::StructFieldName(name.into()));
+    pub fn push_struct_field_name(&mut self, name: impl Into<Cow<'i, str>>, meta: M) {
+        self.push(PathItem::StructFieldName(name.into()), meta);
     }
 
     #[inline]
-    pub fn push_variant_name(&mut self, name: impl Into<Cow<'i, str>>) {
-        self.push(PathItem::VariantName(name.into()))
+    pub fn push_variant_name(&mut self, name: impl Into<Cow<'i, str>>, meta: M) {
+        self.push(PathItem::VariantName(name.into()), meta)
     }
 
     pub fn write(&self, out: &mut impl Write) -> fmt::Result {
@@ -89,14 +89,14 @@ impl<'i> Path<'i> {
                 out.write_str("> ")?;
             }
 
-            item.write(out)?;
+            item.0.write(out)?;
         }
 
         Ok(())
     }
 }
 
-impl fmt::Display for Path<'_> {
+impl<M> fmt::Display for Path<'_, M> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.write(f)

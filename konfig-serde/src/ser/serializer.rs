@@ -4,9 +4,12 @@ use konfig_edit::error::{Error, Result};
 use konfig_edit::serializer::components::{write_escaped_str, write_float, write_int};
 use konfig_edit::value::Path;
 use serde::ser::Serialize;
+use std::cell::Cell;
+
+type DocsWrittenFlag = Cell<bool>;
 
 pub struct Serializer<'o> {
-    pub(super) path: Path<'static>,
+    pub(super) path: Path<'static, DocsWrittenFlag>,
     pub(super) out: &'o mut String,
     pub(super) skip_path_serialization: bool,
 }
@@ -186,7 +189,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.path.push_variant_name(variant);
+        self.path.push_variant_name(variant, Default::default());
         value.serialize(&mut *self)?;
         self.path.pop();
 
@@ -224,7 +227,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.path.push_variant_name(variant);
+        self.path.push_variant_name(variant, Default::default());
 
         Ok(SeqSerializer::new(self))
     }
@@ -246,7 +249,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.path.push_variant_name(variant);
+        self.path.push_variant_name(variant, Default::default());
 
         Ok(KVSerializer::new(self))
     }

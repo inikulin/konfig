@@ -25,7 +25,11 @@ pub use konfig_edit::value::{from_value, to_value};
 
 #[doc(inline)]
 #[cfg(feature = "serde")]
-pub use konfig_serde::{from_str, to_string, Deserializer, Serializer};
+pub use konfig_serde::{from_str, to_string, Deserializer};
+
+#[doc(inline)]
+#[cfg(feature = "serde")]
+pub use konfig_serde::ser::Serializer;
 
 #[doc(inline)]
 pub use konfig_edit::error::{Error, ParseError, Result};

@@ -30,7 +30,7 @@ pub fn serialize(value: &ValueCell, formatting: FormattingOptions) -> Result<Str
 
 struct KonfigSerializer<'v> {
     out: String,
-    path: Path<'v>,
+    path: Path<'v, ()>,
     have_docs_after: bool,
     formatting: FormattingOptions,
 }
@@ -104,7 +104,7 @@ impl<'v> KonfigSerializer<'v> {
 
     fn serialize_sequence(&mut self, seq: &'v [ValueCell]) -> Result<()> {
         for (idx, v) in seq.iter().enumerate() {
-            self.path.push_sequence_index(idx);
+            self.path.push_sequence_index(idx, ());
             self.serialize(v)?;
             self.path.pop();
         }
@@ -142,7 +142,7 @@ impl<'v> KonfigSerializer<'v> {
 
     fn serialize_map(&mut self, map: &'v IndexMap<String, ValueCell>) -> Result<()> {
         for (k, v) in map {
-            self.path.push_map_key(k);
+            self.path.push_map_key(k, ());
             self.serialize(v)?;
             self.path.pop();
         }
@@ -153,7 +153,7 @@ impl<'v> KonfigSerializer<'v> {
     fn serialize_struct(&mut self, map: &'v IndexMap<String, ValueCell>) -> Result<()> {
         for (k, v) in map {
             validate_ident(k)?;
-            self.path.push_struct_field_name(k);
+            self.path.push_struct_field_name(k, ());
             self.serialize(v)?;
             self.path.pop();
         }
@@ -163,7 +163,7 @@ impl<'v> KonfigSerializer<'v> {
 
     fn serialize_variant(&mut self, variant: &'v str, v: &'v ValueCell) -> Result<()> {
         validate_ident(variant)?;
-        self.path.push_variant_name(variant);
+        self.path.push_variant_name(variant, ());
         self.serialize(v)?;
         self.path.pop();
 
