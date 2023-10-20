@@ -1,25 +1,26 @@
+use super::doc_format::DocWriter;
+use super::doc_format::DocsWrittenFlag;
 use super::kv::KVSerializer;
 use super::seq::SeqSerializer;
 use konfig_edit::error::{Error, Result};
 use konfig_edit::serializer::components::{write_escaped_str, write_float, write_int};
 use konfig_edit::value::Path;
 use serde::ser::Serialize;
-use std::cell::Cell;
-
-type DocsWrittenFlag = Cell<bool>;
 
 pub struct Serializer<'o> {
     pub(super) path: Path<'static, DocsWrittenFlag>,
     pub(super) out: &'o mut String,
     pub(super) skip_path_serialization: bool,
+    doc_writer: Option<DocWriter>,
 }
 
 impl<'o> Serializer<'o> {
-    pub fn new(out: &'o mut String) -> Self {
+    pub fn new(out: &'o mut String, doc_writer: Option<DocWriter>) -> Self {
         Self {
             path: Default::default(),
             out,
             skip_path_serialization: false,
+            doc_writer,
         }
     }
 
@@ -30,6 +31,10 @@ impl<'o> Serializer<'o> {
 
         if !self.out.is_empty() {
             self.out.push_str("\n\n");
+        }
+
+        if let Some(ref doc_writer) = self.doc_writer {
+            doc_writer.write_docs_for_path(self.out, &self.path);
         }
 
         self.path
@@ -189,7 +194,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.path.push_variant_name(variant, Default::default());
+        self.path.push_variant_name(variant);
         value.serialize(&mut *self)?;
         self.path.pop();
 
@@ -227,7 +232,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.path.push_variant_name(variant, Default::default());
+        self.path.push_variant_name(variant);
 
         Ok(SeqSerializer::new(self))
     }
@@ -249,7 +254,7 @@ impl<'s, 'o> serde::Serializer for &'s mut Serializer<'o> {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.path.push_variant_name(variant, Default::default());
+        self.path.push_variant_name(variant);
 
         Ok(KVSerializer::new(self))
     }

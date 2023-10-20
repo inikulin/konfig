@@ -24,7 +24,7 @@ impl<'s, 'o> serde::ser::SerializeMap for KVSerializer<'s, 'o> {
     {
         self.inner
             .path
-            .push_map_key(key.serialize(MapKeySerializer)?, Default::default());
+            .push_map_key(key.serialize(MapKeySerializer)?);
 
         Ok(())
     }
@@ -54,9 +54,7 @@ impl<'s, 'o> serde::ser::SerializeStruct for KVSerializer<'s, 'o> {
     where
         T: ?Sized + Serialize,
     {
-        self.inner
-            .path
-            .push_struct_field_name(key, Default::default());
+        self.inner.path.push_struct_field_name(key);
 
         serde::ser::SerializeMap::serialize_value(self, value)
     }

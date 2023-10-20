@@ -103,7 +103,7 @@ where
                 Value::Variant(current_name, current_value),
                 Value::Variant(other_name, other_value),
             ) if current_name == other_name => {
-                self.path.push_variant_name(current_name.to_string(), ());
+                self.path.push_variant_name(current_name.to_string());
 
                 let resolved = self
                     .merge_values(current_value.into(), other_value.into())?
@@ -114,10 +114,10 @@ where
                 Ok(Value::Variant(current_name, resolved))
             }
             (Value::Map(current), Value::Map(other)) => self
-                .merge_maps(current, other, |p, k| p.push_map_key(k, ()))
+                .merge_maps(current, other, |p, k| p.push_map_key(k))
                 .map(Value::Map),
             (Value::Struct(current), Value::Struct(other)) => self
-                .merge_maps(current, other, |p, n| p.push_struct_field_name(n, ()))
+                .merge_maps(current, other, |p, n| p.push_struct_field_name(n))
                 .map(Value::Struct),
             (current, other) => self.conflict_resolver.resolve(&self.path, current, other),
         }
@@ -136,7 +136,7 @@ where
 
         for (i, src_value) in src.into_iter().enumerate() {
             if dst[i] != src_value {
-                self.path.push_sequence_index(i, ());
+                self.path.push_sequence_index(i);
 
                 let dst_value = mem::replace(&mut dst[i], Value::Null.into());
 

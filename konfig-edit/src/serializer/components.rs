@@ -46,32 +46,24 @@ pub fn write_escaped_str(out: &mut impl Write, v: &str) -> fmt::Result {
 pub fn escape_docs<'d>(docs: &'d str, escape: &dyn DocLineEscape) -> Cow<'d, str> {
     let mut out = Cow::Borrowed(docs);
 
-    'line_iter: for (line_idx, line) in docs.lines().enumerate() {
-        for (idx, ch) in line.chars().enumerate() {
-            if ch == ' ' || ch == '\t' {
-                continue;
+    for (line_idx, line) in docs.lines().enumerate() {
+        if let Some(gt_sign_pos) = doc_line_leading_gt_sign_pos(line) {
+            if matches!(out, Cow::Borrowed(_)) {
+                out = docs
+                    .lines()
+                    .take(line_idx)
+                    .fold(String::new(), |a, b| a + b + "\n")
+                    .into();
             }
 
-            if ch == '>' {
-                if matches!(out, Cow::Borrowed(_)) {
-                    out = docs
-                        .lines()
-                        .take(line_idx)
-                        .fold(String::new(), |a, b| a + b + "\n")
-                        .into();
-                }
+            let mut line = line.to_owned();
+            let out = out.to_mut();
 
-                let mut line = line.to_owned();
-                let out = out.to_mut();
+            escape.escape(&mut line, gt_sign_pos);
+            out.push_str(&line);
+            out.push('\n');
 
-                escape.escape(&mut line, idx);
-                out.push_str(&line);
-                out.push('\n');
-
-                continue 'line_iter;
-            }
-
-            break;
+            continue;
         }
 
         if let Cow::Owned(ref mut out) = out {
@@ -81,6 +73,22 @@ pub fn escape_docs<'d>(docs: &'d str, escape: &dyn DocLineEscape) -> Cow<'d, str
     }
 
     out
+}
+
+pub fn doc_line_leading_gt_sign_pos(doc_line: &str) -> Option<usize> {
+    for (idx, ch) in doc_line.chars().enumerate() {
+        if ch == '>' {
+            return Some(idx);
+        }
+
+        if ch == ' ' || ch == '\t' {
+            continue;
+        }
+
+        break;
+    }
+
+    None
 }
 
 fn escape_char(c: char) -> Option<&'static str> {

@@ -29,7 +29,7 @@ impl<'s, 'o> SeqRepresentation<'s, 'o> {
             .iter()
             .enumerate()
             .try_for_each(|(idx, value)| {
-                serializer.path.push_sequence_index(idx, Default::default());
+                serializer.path.push_sequence_index(idx);
                 serializer.serialize_path()?;
                 serializer.out.push_str(value);
                 serializer.path.pop();
@@ -99,11 +99,8 @@ impl<'s, 'o> serde::ser::SerializeSeq for SeqSerializer<'s, 'o> {
         }
 
         if let SeqRepresentation::Kv(ref mut inner) = self.repr {
-            inner
-                .inner
-                .path
-                .push_sequence_index(self.current_index, Default::default());
-            
+            inner.inner.path.push_sequence_index(self.current_index);
+
             serde::ser::SerializeMap::serialize_value(inner, value)?;
         }
 
@@ -187,7 +184,7 @@ where
     T: ?Sized + Serialize,
 {
     let mut out = String::with_capacity(16);
-    let mut serializer = Serializer::new(&mut out);
+    let mut serializer = Serializer::new(&mut out, None);
 
     serializer.skip_path_serialization = true;
     value.serialize(&mut serializer)?;
