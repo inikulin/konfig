@@ -58,6 +58,11 @@ impl<'i, M: Default> Path<'i, M> {
     }
 
     #[inline]
+    pub fn metadata_mut(&mut self) -> &mut [M] {
+        &mut self.metadata
+    }
+
+    #[inline]
     pub fn push(&mut self, item: PathItem<'i>) {
         self.items.push(item);
         self.metadata.push(Default::default());

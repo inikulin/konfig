@@ -51,10 +51,10 @@ fn docs_escaping() {
         before: "    > hello",
         after: "    > bye",
         expected: "
-            \\> hello
+            <span>&gt;</span> hello
         > = null
 
-            \\> bye
+            <span>&gt;</span> bye
         "
     }
 
@@ -69,12 +69,12 @@ fn docs_escaping() {
         expected: "
             foo
 
-        \\> hello
+        <span>&gt;</span> hello
         
         bar
         > = null
 
-        \\> bye
+        <span>&gt;</span> bye
         "
     }
 
@@ -89,7 +89,7 @@ fn docs_escaping() {
         
         > bye
         
-        ",
+        >",
         expected: "
             hello
 
@@ -98,8 +98,9 @@ fn docs_escaping() {
         > = null
 
 
-        \\> bye
+        <span>&gt;</span> bye
 
+        <span>&gt;</span>
         "
     }
 }

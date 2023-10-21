@@ -1,10 +1,9 @@
 use konfig_edit::serializer::components::doc_line_leading_gt_sign_pos;
-use konfig_edit::serializer::formatting::{DocLineEscape, EscapeWithBackslash};
+use konfig_edit::serializer::formatting::{DocLineEscape, MarkdowDocLineEscape};
 use konfig_edit::value::{Path, PathItem};
-use std::cell::Cell;
 use std::collections::HashMap;
 
-pub(super) type DocsWrittenFlag = Cell<bool>;
+pub(super) type DocsWrittenFlag = bool;
 
 pub struct DocWriter {
     docs: HashMap<Vec<PathItem<'static>>, String>,
@@ -18,18 +17,20 @@ impl DocWriter {
     pub(super) fn write_docs_for_path(
         &self,
         out: &mut String,
-        path: &Path<'static, DocsWrittenFlag>,
+        path: &mut Path<'static, DocsWrittenFlag>,
     ) {
         for i in 0..path.items().len() {
-            let docs_written = path.metadata()[i].get();
+            let docs_written = path.metadata()[i];
 
             if !docs_written {
                 if let Some(docs) = self.docs.get(&path.items()[0..=i]) {
-                    write_path_item_docs(out, docs, i, i == path.items().len() - 1);
+                    let is_last_path_item = i == path.items().len() - 1;
+
+                    write_path_item_docs(out, docs, i, is_last_path_item);
                 }
             }
 
-            path.metadata()[i].set(true);
+            path.metadata_mut()[i] = true;
         }
     }
 }
@@ -59,7 +60,7 @@ fn write_path_item_docs(
         if let Some(gt_sign_pos) = doc_line_leading_gt_sign_pos(line) {
             let mut line = line.to_string();
 
-            EscapeWithBackslash.escape(&mut line, gt_sign_pos);
+            MarkdowDocLineEscape.escape(&mut line, gt_sign_pos);
 
             out.push_str(&line);
         } else {
@@ -140,7 +141,7 @@ mod tests {
 
         let mut out = String::new();
 
-        writer.write_docs_for_path(&mut out, &path);
+        writer.write_docs_for_path(&mut out, &mut path);
 
         assert_eq!(
             out,
@@ -148,7 +149,7 @@ mod tests {
                 "# This is docs for `foo` field",
                 "",
                 "This is some description of the the `foo` field.",
-                "  \\> this line should be escaped",
+                "  <span>&gt;</span> this line should be escaped",
                 "",
                 "## This is docs for `bar` field",
                 "",
@@ -167,7 +168,7 @@ mod tests {
 
         let mut out = String::new();
 
-        writer.write_docs_for_path(&mut out, &path);
+        writer.write_docs_for_path(&mut out, &mut path);
 
         assert_eq!(
             out,

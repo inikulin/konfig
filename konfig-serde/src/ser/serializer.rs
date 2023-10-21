@@ -34,7 +34,7 @@ impl<'o> Serializer<'o> {
         }
 
         if let Some(ref doc_writer) = self.doc_writer {
-            doc_writer.write_docs_for_path(self.out, &self.path);
+            doc_writer.write_docs_for_path(self.out, &mut self.path);
         }
 
         self.path

@@ -14,12 +14,15 @@ where
     }
 }
 
-pub struct EscapeWithBackslash;
+pub struct MarkdowDocLineEscape;
 
-impl DocLineEscape for EscapeWithBackslash {
+impl DocLineEscape for MarkdowDocLineEscape {
     #[inline]
     fn escape(&self, line: &mut String, gt_sign_pos: usize) {
-        line.insert(gt_sign_pos, '\\');
+        let rest = line.split_off(gt_sign_pos);
+
+        line.push_str("<span>&gt;</span>");
+        line.push_str(rest.split_at(1).1);
     }
 }
 
@@ -32,7 +35,7 @@ impl Default for FormattingOptions {
     #[inline]
     fn default() -> Self {
         Self {
-            doc_line_escape: Box::new(EscapeWithBackslash),
+            doc_line_escape: Box::new(MarkdowDocLineEscape),
             path_wrap_at_len: 100,
         }
     }
