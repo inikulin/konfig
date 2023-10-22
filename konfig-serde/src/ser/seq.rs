@@ -184,7 +184,7 @@ where
     T: ?Sized + Serialize,
 {
     let mut out = String::with_capacity(16);
-    let mut serializer = Serializer::new(&mut out, None);
+    let mut serializer = Serializer::new(&mut out);
 
     serializer.skip_path_serialization = true;
     value.serialize(&mut serializer)?;

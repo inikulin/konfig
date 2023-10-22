@@ -1,0 +1,9 @@
+[package]
+name = "konfig-ser-docs"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+konfig-edit = { workspace = true }

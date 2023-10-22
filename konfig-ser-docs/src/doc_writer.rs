@@ -3,7 +3,7 @@ use konfig_edit::serializer::formatting::{DocLineEscape, MarkdowDocLineEscape};
 use konfig_edit::value::{Path, PathItem};
 use std::collections::HashMap;
 
-pub(super) type DocsWrittenFlag = bool;
+pub type DocsWrittenFlag = bool;
 
 pub struct DocWriter {
     docs: HashMap<Vec<PathItem<'static>>, String>,
@@ -14,11 +14,7 @@ impl DocWriter {
         Self { docs }
     }
 
-    pub(super) fn write_docs_for_path(
-        &self,
-        out: &mut String,
-        path: &mut Path<'static, DocsWrittenFlag>,
-    ) {
+    pub fn write_docs_for_path(&self, out: &mut String, path: &mut Path<'static, DocsWrittenFlag>) {
         for i in 0..path.items().len() {
             let docs_written = path.metadata()[i];
 

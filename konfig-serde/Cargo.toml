@@ -5,7 +5,12 @@ edition = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
 
+[features]
+default = ["ser-docs"]
+ser-docs = ["dep:konfig-ser-docs"]
+
 [dependencies]
 konfig-edit = { workspace = true, features = ["serde"] }
+konfig-ser-docs = { workspace = true, optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

@@ -4,8 +4,6 @@ mod map_key;
 mod seq;
 mod serializer;
 
-pub mod doc_format;
-
 use konfig_edit::error::Result;
 use serde::ser::Serialize;
 
@@ -16,7 +14,7 @@ where
     T: Serialize + ?Sized,
 {
     let mut out = String::with_capacity(128);
-    let mut ser = Serializer::new(&mut out, None);
+    let mut ser = Serializer::new(&mut out);
 
     value.serialize(&mut ser)?;
 

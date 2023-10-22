@@ -3,6 +3,7 @@ members = [
     "konfig",
     "konfig-edit",
     "konfig-macros",
+    "konfig-ser-docs",
     "konfig-serde"
 ]
 resolver = "2"
@@ -15,6 +16,7 @@ authors = ["Ivan Nikulin <ivan@nikulin.engineering>"]
 
 [workspace.dependencies]
 konfig-edit = { version = "1", path = "./konfig-edit" }
+konfig-ser-docs = { version = "1", path = "./konfig-ser-docs" }
 konfig-serde = { version = "1", path = "./konfig-serde" }
 konfig-macros = { version = "1", path = "./konfig-macros" }
 

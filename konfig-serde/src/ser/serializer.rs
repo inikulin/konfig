@@ -1,5 +1,3 @@
-use super::doc_format::DocWriter;
-use super::doc_format::DocsWrittenFlag;
 use super::kv::KVSerializer;
 use super::seq::SeqSerializer;
 use konfig_edit::error::{Error, Result};
@@ -7,20 +5,51 @@ use konfig_edit::serializer::components::{write_escaped_str, write_float, write_
 use konfig_edit::value::Path;
 use serde::ser::Serialize;
 
+#[cfg(feature = "ser-docs")]
+mod ser_docs_deps {
+    pub(super) use konfig_edit::value::PathItem;
+    pub(super) use konfig_ser_docs::doc_writer::{DocWriter, DocsWrittenFlag};
+    pub(super) use std::collections::HashMap;
+}
+
+#[cfg(feature = "ser-docs")]
+use self::ser_docs_deps::*;
+
 pub struct Serializer<'o> {
-    pub(super) path: Path<'static, DocsWrittenFlag>,
     pub(super) out: &'o mut String,
     pub(super) skip_path_serialization: bool,
+
+    #[cfg(not(feature = "ser-docs"))]
+    pub(super) path: Path<'static, ()>,
+
+    #[cfg(feature = "ser-docs")]
+    pub(super) path: Path<'static, DocsWrittenFlag>,
+
+    #[cfg(feature = "ser-docs")]
     doc_writer: Option<DocWriter>,
 }
 
 impl<'o> Serializer<'o> {
-    pub fn new(out: &'o mut String, doc_writer: Option<DocWriter>) -> Self {
+    pub fn new(out: &'o mut String) -> Self {
         Self {
             path: Default::default(),
             out,
             skip_path_serialization: false,
-            doc_writer,
+            #[cfg(feature = "ser-docs")]
+            doc_writer: None,
+        }
+    }
+
+    #[cfg(feature = "ser-docs")]
+    pub fn new_with_docs(
+        out: &'o mut String,
+        docs: HashMap<Vec<PathItem<'static>>, String>,
+    ) -> Self {
+        Self {
+            path: Default::default(),
+            out,
+            skip_path_serialization: false,
+            doc_writer: Some(DocWriter::new(docs)),
         }
     }
 
@@ -33,6 +62,7 @@ impl<'o> Serializer<'o> {
             self.out.push_str("\n\n");
         }
 
+        #[cfg(feature = "ser-docs")]
         if let Some(ref doc_writer) = self.doc_writer {
             doc_writer.write_docs_for_path(self.out, &mut self.path);
         }
