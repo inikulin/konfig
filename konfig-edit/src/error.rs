@@ -22,7 +22,7 @@ pub enum Error {
 
 impl Error {
     #[inline]
-    pub(crate) fn custom<T>(msg: T) -> Self
+    pub fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,
     {
