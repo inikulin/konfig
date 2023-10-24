@@ -1,10 +1,11 @@
+use konfig::WithDocs;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 /// A complex data structure that contains substructures, enums, and fields with types from
 /// `std::net` and all primitive types, as well as structure and unit enum variant types.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct ComplexData {
     /// A substructure that contains a list of items.
     items: ItemList,
@@ -47,14 +48,14 @@ struct ComplexData {
 }
 
 /// A list of items.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct ItemList {
     /// The items in the list.
     items: Vec<Item>,
 }
 
 /// An item in the list.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct Item {
     /// The name of the item.
     name: String,
@@ -64,7 +65,7 @@ struct Item {
 }
 
 /// An enum that represents different types of values.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 enum ValueEnum {
     /// A boolean value.
     Boolean(bool),
@@ -83,13 +84,13 @@ enum ValueEnum {
 }
 
 /// An enum that represents a structure variant with two fields.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 enum StructureVariant {
     /// The variant with two fields.
     Variant(StructVariantFields),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct StructVariantFields {
     /// The name of the variant.
     name: String,
@@ -99,35 +100,35 @@ struct StructVariantFields {
 }
 
 /// An enum that represents a unit variant.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 enum UnitVariant {
     /// The unit variant.
     Variant,
 }
 
 /// A map of integer values.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct IntMap {
     /// The map of integer values.
     map: BTreeMap<String, i32>,
 }
 
 /// A map of string values.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct StringMap {
     /// The map of string values.
     map: BTreeMap<String, String>,
 }
 
 /// A substructure that contains a map of properties.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct PropertyMap {
     /// The map of properties.
     properties: BTreeMap<String, Property>,
 }
 
 /// A property.
-#[derive(Serialize)]
+#[derive(Serialize, WithDocs)]
 struct Property {
     /// The name of the property.
     name: String,

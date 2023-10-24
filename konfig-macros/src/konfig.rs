@@ -1,27 +1,16 @@
 use konfig_edit::serializer::components::write_float;
 use konfig_edit::value::{Value, ValueCell};
-use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{LitBool, LitFloat, LitInt, LitStr};
 
-pub(crate) fn expand(arg: TokenStream) -> TokenStream {
-    let src = syn::parse_macro_input!(arg as LitStr);
-
-    expand_from_parsed(src)
-}
-
-fn expand_from_parsed(arg: LitStr) -> TokenStream {
+pub(crate) fn expand(arg: LitStr) -> TokenStream2 {
     let value = match konfig_edit::parser::parse(&arg.value()) {
         Ok(value) => value,
-        Err(e) => {
-            return syn::Error::new(Span::call_site(), e)
-                .to_compile_error()
-                .into()
-        }
+        Err(e) => return syn::Error::new(Span::call_site(), e).to_compile_error(),
     };
 
-    gen_value_code(&value).into()
+    gen_value_code(&value)
 }
 
 fn gen_value_code(value: &ValueCell) -> TokenStream2 {

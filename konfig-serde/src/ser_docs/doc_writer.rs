@@ -20,9 +20,7 @@ impl DocWriter {
 
             if !docs_written {
                 if let Some(docs) = self.docs.get(&path.items()[0..=i]) {
-                    let is_last_path_item = i == path.items().len() - 1;
-
-                    write_path_item_docs(out, docs, i, is_last_path_item);
+                    write_path_item_docs(out, docs, i);
                 }
             }
 
@@ -31,24 +29,15 @@ impl DocWriter {
     }
 }
 
-fn write_path_item_docs(
-    out: &mut String,
-    docs: &str,
-    nesting_level: usize,
-    is_last_path_item: bool,
-) {
+fn write_path_item_docs(out: &mut String, docs: &str, nesting_level: usize) {
     let mut is_doc_head = true;
 
-    for (idx, line) in docs.lines().enumerate() {
+    for line in docs.lines() {
         if line.trim().is_empty() {
             is_doc_head = false;
         }
 
-        if is_last_path_item {
-            if idx == 0 {
-                out.push_str("---\n");
-            }
-        } else if is_doc_head {
+        if is_doc_head {
             write_header_line(out, line, nesting_level);
             continue;
         }
@@ -75,7 +64,7 @@ fn write_header_line(out: &mut String, line: &str, nesting_level: usize) {
     let header_prefix_idx = nesting_level.min(HEADER_PREFIXES.len() - 1);
 
     out.push_str(HEADER_PREFIXES[header_prefix_idx]);
-    out.push_str(line);
+    out.push_str(line.trim_start());
     out.push('\n');
 }
 
@@ -96,7 +85,7 @@ mod tests {
         add_docs(
             "foo",
             [
-                "This is docs for `foo` field",
+                "   This is docs for `foo` field",
                 "",
                 "This is some description of the the `foo` field.",
                 "  > this line should be escaped",
@@ -149,8 +138,7 @@ mod tests {
                 "",
                 "## This is docs for `bar` field",
                 "",
-                "---",
-                "This is docs for `baz` field",
+                "### This is docs for `baz` field",
                 "",
                 "Some long",
                 "multiline description",
@@ -169,8 +157,7 @@ mod tests {
         assert_eq!(
             out,
             [
-                "---",
-                "This is docs for `qux` field",
+                "#### This is docs for `qux` field",
                 "",
                 "It has also has",
                 "long multiline description",

@@ -7,8 +7,8 @@ use serde::ser::Serialize;
 
 #[cfg(feature = "ser-docs")]
 mod ser_docs_deps {
+    pub(super) use crate::ser_docs::doc_writer::{DocWriter, DocsWrittenFlag};
     pub(super) use konfig_edit::value::PathItem;
-    pub(super) use konfig_ser_docs::doc_writer::{DocWriter, DocsWrittenFlag};
     pub(super) use std::collections::HashMap;
 }
 

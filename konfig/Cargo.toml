@@ -13,7 +13,7 @@ rustdoc-args = ["--cfg", "docs_rs"]
 [features]
 default = ["serde", "ser-docs", "macros"]
 serde = ["konfig-edit/serde", "dep:konfig-serde"]
-ser-docs = ["konfig-serde/ser-docs"]
+ser-docs = ["serde", "konfig-serde/ser-docs"]
 macros = ["dep:konfig-macros"]
 
 [dependencies]
