@@ -33,7 +33,9 @@ fn write_path_item_docs(out: &mut String, docs: &str, nesting_level: usize) {
     let mut is_doc_head = true;
 
     for line in docs.lines() {
-        if line.trim().is_empty() {
+        let line = line.trim();
+
+        if line.is_empty() {
             is_doc_head = false;
         }
 
@@ -64,7 +66,7 @@ fn write_header_line(out: &mut String, line: &str, nesting_level: usize) {
     let header_prefix_idx = nesting_level.min(HEADER_PREFIXES.len() - 1);
 
     out.push_str(HEADER_PREFIXES[header_prefix_idx]);
-    out.push_str(line.trim_start());
+    out.push_str(line);
     out.push('\n');
 }
 
@@ -134,7 +136,7 @@ mod tests {
                 "# This is docs for `foo` field",
                 "",
                 "This is some description of the the `foo` field.",
-                "  <span>&gt;</span> this line should be escaped",
+                "<span>&gt;</span> this line should be escaped",
                 "",
                 "## This is docs for `bar` field",
                 "",

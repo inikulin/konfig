@@ -1,9 +1,12 @@
+mod serde_attrs;
+
+use self::serde_attrs::{SerdeAttributesInfo, SerdeContainerAttributesInfo};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::visit::Visit;
 use syn::{
     Attribute, DataEnum, DataStruct, DeriveInput, Expr, ExprLit, Fields, FieldsNamed,
-    FieldsUnnamed, Ident, Index, Lit, LitStr, Meta, MetaList, MetaNameValue, Variant,
+    FieldsUnnamed, Ident, Index, Lit, Meta, MetaList, MetaNameValue, Variant,
 };
 
 #[derive(Default)]
@@ -43,28 +46,35 @@ impl Visit<'_> for ImplCodegen {
     }
 }
 
-#[derive(Default)]
-struct AddDocsBodyCodegen(TokenStream2);
+struct AddDocsBodyCodegen {
+    out: TokenStream2,
+    serde_container_attrs: SerdeContainerAttributesInfo,
+}
 
 impl AddDocsBodyCodegen {
     fn expand(input: &DeriveInput) -> TokenStream2 {
-        let mut codegen = Self::default();
+        let serde_container_attrs = SerdeContainerAttributesInfo::from(&input.attrs);
+
+        let mut codegen = Self {
+            out: TokenStream2::default(),
+            serde_container_attrs,
+        };
 
         codegen.visit_derive_input(input);
 
-        codegen.0
+        codegen.out
     }
 }
 
 impl Visit<'_> for AddDocsBodyCodegen {
     fn visit_data_struct(&mut self, data_struct: &DataStruct) {
-        self.0 = StructAddDocsBodyCodegen::expand(data_struct);
+        self.out = StructAddDocsBodyCodegen::expand(data_struct, &self.serde_container_attrs);
     }
 
     fn visit_data_enum(&mut self, data_enum: &DataEnum) {
-        let match_arms = VariantsMatchArmsCodegen::expand(data_enum);
+        let match_arms = VariantsMatchArmsCodegen::expand(data_enum, &self.serde_container_attrs);
 
-        self.0 = quote! {
+        self.out = quote! {
             match self {
                 #match_arms
             }
@@ -72,20 +82,28 @@ impl Visit<'_> for AddDocsBodyCodegen {
     }
 }
 
-#[derive(Default)]
-struct StructAddDocsBodyCodegen(TokenStream2);
+struct StructAddDocsBodyCodegen<'a> {
+    out: TokenStream2,
+    serde_container_attrs: &'a SerdeContainerAttributesInfo,
+}
 
-impl StructAddDocsBodyCodegen {
-    fn expand(data_struct: &DataStruct) -> TokenStream2 {
-        let mut codegen = Self::default();
+impl<'a> StructAddDocsBodyCodegen<'a> {
+    fn expand(
+        data_struct: &DataStruct,
+        serde_container_attrs: &'a SerdeContainerAttributesInfo,
+    ) -> TokenStream2 {
+        let mut codegen = Self {
+            out: TokenStream2::default(),
+            serde_container_attrs,
+        };
 
         codegen.visit_data_struct(data_struct);
 
-        codegen.0
+        codegen.out
     }
 }
 
-impl Visit<'_> for StructAddDocsBodyCodegen {
+impl Visit<'_> for StructAddDocsBodyCodegen<'_> {
     fn visit_fields_unnamed(&mut self, fields: &FieldsUnnamed) {
         for (idx, field) in fields.unnamed.iter().enumerate() {
             let (docs, cfg_attrs) = extract_docs_and_cfg_attrs(&field.attrs);
@@ -95,7 +113,7 @@ impl Visit<'_> for StructAddDocsBodyCodegen {
                 span: Span::call_site(),
             };
 
-            self.0.extend(quote! {
+            self.out.extend(quote! {
                 #(#cfg_attrs)*
                 {
                     path.push_sequence_index(#idx);
@@ -108,31 +126,39 @@ impl Visit<'_> for StructAddDocsBodyCodegen {
     }
 
     fn visit_fields_named(&mut self, fields: &FieldsNamed) {
-        self.0 = expand_fields_named(fields, true);
+        self.out = expand_fields_named(fields, true, self.serde_container_attrs);
     }
 }
 
-#[derive(Default)]
-struct VariantsMatchArmsCodegen(TokenStream2);
+struct VariantsMatchArmsCodegen<'a> {
+    out: TokenStream2,
+    serde_container_attrs: &'a SerdeContainerAttributesInfo,
+}
 
-impl VariantsMatchArmsCodegen {
-    fn expand(data_enum: &DataEnum) -> TokenStream2 {
-        let mut codegen = Self::default();
+impl<'a> VariantsMatchArmsCodegen<'a> {
+    fn expand(
+        data_enum: &DataEnum,
+        serde_container_attrs: &'a SerdeContainerAttributesInfo,
+    ) -> TokenStream2 {
+        let mut codegen = Self {
+            out: TokenStream2::default(),
+            serde_container_attrs,
+        };
 
         codegen.visit_data_enum(data_enum);
 
-        codegen.0
+        codegen.out
     }
 }
 
-impl Visit<'_> for VariantsMatchArmsCodegen {
+impl Visit<'_> for VariantsMatchArmsCodegen<'_> {
     fn visit_variant(&mut self, variant: &Variant) {
         let name = &variant.ident;
         let span = name.span();
         let (docs, cfg_attrs) = extract_docs_and_cfg_attrs(&variant.attrs);
 
         if let Fields::Unit = &variant.fields {
-            self.0.extend(quote_spanned! { span =>
+            self.out.extend(quote_spanned! { span =>
                 #(#cfg_attrs)*
                 Self::#name => (),
             });
@@ -140,17 +166,33 @@ impl Visit<'_> for VariantsMatchArmsCodegen {
             return;
         }
 
-        let name_str = name.to_string();
         let match_pattern = VariantMatchPatternCodegen::expand(&variant.fields);
-        let fields_docs = VariantFieldsDocsCodegen::expand(&variant.fields);
 
-        self.0.extend(quote_spanned! { span =>
+        let serde_container_attrs = SerdeContainerAttributesInfo::from(&variant.attrs);
+        let fields_docs = VariantFieldsDocsCodegen::expand(&variant.fields, &serde_container_attrs);
+
+        let mut body = quote! {
+            #docs
+            #fields_docs
+        };
+
+        if !self.serde_container_attrs.untagged() {
+            let name_str = SerdeAttributesInfo::from(&variant.attrs).maybe_rename(
+                self.serde_container_attrs
+                    .maybe_rename_variant(name.to_string()),
+            );
+
+            body = quote! {
+                path.push_variant_name(#name_str);
+                #body
+                path.pop();
+            };
+        }
+
+        self.out.extend(quote_spanned! { span =>
             #(#cfg_attrs)*
             Self::#name #match_pattern => {
-                path.push_variant_name(#name_str);
-                #docs
-                #fields_docs
-                path.pop();
+                #body
             }
         });
     }
@@ -186,20 +228,28 @@ impl Visit<'_> for VariantMatchPatternCodegen {
     }
 }
 
-#[derive(Default)]
-struct VariantFieldsDocsCodegen(TokenStream2);
+struct VariantFieldsDocsCodegen<'a> {
+    out: TokenStream2,
+    serde_container_attrs: &'a SerdeContainerAttributesInfo,
+}
 
-impl VariantFieldsDocsCodegen {
-    fn expand(fields: &Fields) -> TokenStream2 {
-        let mut codegen = Self::default();
+impl<'a> VariantFieldsDocsCodegen<'a> {
+    fn expand(
+        fields: &Fields,
+        serde_container_attrs: &'a SerdeContainerAttributesInfo,
+    ) -> TokenStream2 {
+        let mut codegen = Self {
+            out: TokenStream2::default(),
+            serde_container_attrs,
+        };
 
         codegen.visit_fields(fields);
 
-        codegen.0
+        codegen.out
     }
 }
 
-impl Visit<'_> for VariantFieldsDocsCodegen {
+impl Visit<'_> for VariantFieldsDocsCodegen<'_> {
     fn visit_fields_unnamed(&mut self, fields: &FieldsUnnamed) {
         let is_newtype_variant = fields.unnamed.len() == 1;
 
@@ -208,7 +258,7 @@ impl Visit<'_> for VariantFieldsDocsCodegen {
             let (docs, cfg_attrs) = extract_docs_and_cfg_attrs(attrs);
             let field_name = tuple_enum_variant_field_name(0);
 
-            self.0 = quote! {
+            self.out = quote! {
                 #(#cfg_attrs)*
                 {
                     #docs
@@ -223,7 +273,7 @@ impl Visit<'_> for VariantFieldsDocsCodegen {
             let (docs, cfg_attrs) = extract_docs_and_cfg_attrs(&field.attrs);
             let field_name = tuple_enum_variant_field_name(idx);
 
-            self.0.extend(quote! {
+            self.out.extend(quote! {
                 #(#cfg_attrs)*
                 {
                     path.push_sequence_index(#idx);
@@ -236,24 +286,30 @@ impl Visit<'_> for VariantFieldsDocsCodegen {
     }
 
     fn visit_fields_named(&mut self, fields: &FieldsNamed) {
-        self.0 = expand_fields_named(fields, false);
+        self.out = expand_fields_named(fields, false, self.serde_container_attrs);
     }
 }
 
-fn expand_fields_named(fields: &FieldsNamed, is_struct_fields: bool) -> TokenStream2 {
-    let mut expanded = quote! {};
+fn expand_fields_named(
+    fields: &FieldsNamed,
+    is_struct_fields: bool,
+    serde_container_attrs: &SerdeContainerAttributesInfo,
+) -> TokenStream2 {
+    let mut expanded = TokenStream2::default();
 
     let maybe_self = if is_struct_fields {
         quote! { self. }
     } else {
-        quote! {}
+        TokenStream2::default()
     };
 
     for field in &fields.named {
         let name = field.ident.as_ref().unwrap();
         let span = name.span();
-        let name_str = LitStr::new(&name.to_string(), span);
         let (docs, cfg_attrs) = extract_docs_and_cfg_attrs(&field.attrs);
+
+        let name_str = SerdeAttributesInfo::from(&field.attrs)
+            .maybe_rename(serde_container_attrs.maybe_rename_field(name.to_string()));
 
         expanded.extend(quote_spanned! { span =>
             #(#cfg_attrs)*
@@ -294,7 +350,7 @@ fn extract_docs_and_cfg_attrs(attrs: &[Attribute]) -> (TokenStream2, Vec<&Attrib
     }
 
     let docs = if docs.is_empty() {
-        quote! {}
+        TokenStream2::default()
     } else {
         let docs = docs.join("\n");
 
@@ -588,6 +644,159 @@ mod tests {
                                 path.pop();
                             }
                             path.pop();
+                        }
+                    }
+                    Ok(())
+                }
+            }
+
+        };
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn expand_struct_with_serde_rename() {
+        let input: DeriveInput = syn::parse_quote! {
+            #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+            struct FooBar<T> where T: Copy {
+                foo: usize,
+                bar: Option<T>,
+                #[serde(rename(serialize = "baz_renamed"))]
+                baz: String,
+                #[serde(rename = "qux_renamed")]
+                qux: String
+            }
+        };
+
+        let actual = ImplCodegen::expand(input);
+
+        let expected: TokenStream2 = syn::parse_quote! {
+            #[automatically_derived]
+            impl<T> konfig::WithDocs for FooBar<T> where T: Copy {
+                fn add_docs(
+                    &self,
+                    path: &mut konfig::value::Path<'static, ()>,
+                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                ) -> konfig::Result<()> {
+                    {
+                        path.push_struct_field_name("FOO");
+                        self.foo.add_docs(path, docs)?;
+                        path.pop();
+                    }
+                    {
+                        path.push_struct_field_name("BAR");
+                        self.bar.add_docs(path, docs)?;
+                        path.pop();
+                    }
+                    {
+                        path.push_struct_field_name("baz_renamed");
+                        self.baz.add_docs(path, docs)?;
+                        path.pop();
+                    }
+                    {
+                        path.push_struct_field_name("qux_renamed");
+                        self.qux.add_docs(path, docs)?;
+                        path.pop();
+                    }
+
+                    Ok(())
+                }
+            }
+        };
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn expand_enum_with_serde_rename() {
+        let input: DeriveInput = syn::parse_quote! {
+            #[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE"))]
+            enum FooBar<T> where T: Copy {
+                #[serde(rename = "NewtypeVariant_renamed")]
+                NewtypeVariant(String),
+
+                #[serde(rename_all(serialize = "camelCase"))]
+                StructVariant {
+                    #[serde(rename = "foo_renamed")]
+                    foo: usize,
+                    bar_qux: Option<T>,
+                }
+            }
+        };
+
+        let actual = ImplCodegen::expand(input);
+
+        let expected: TokenStream2 = syn::parse_quote! {
+            #[automatically_derived]
+            impl<T> konfig::WithDocs for FooBar<T>
+            where
+                T: Copy
+            {
+                fn add_docs(
+                    &self,
+                    path: &mut konfig::value::Path<'static, ()>,
+                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                ) -> konfig::Result<()> {
+                    match self {
+                        Self::NewtypeVariant(n0) => {
+                            path.push_variant_name("NewtypeVariant_renamed");
+                            {
+                                n0.add_docs(path, docs)?;
+                            }
+                            path.pop();
+                        }
+                        Self::StructVariant { foo, bar_qux } => {
+                            path.push_variant_name("STRUCT_VARIANT");
+                            {
+                                path.push_struct_field_name("foo_renamed");
+                                foo.add_docs(path, docs)?;
+                                path.pop();
+                            }
+                            {
+                                path.push_struct_field_name("barQux");
+                                bar_qux.add_docs(path, docs)?;
+                                path.pop();
+                            }
+                            path.pop();
+                        }
+                    }
+                    Ok(())
+                }
+            }
+
+        };
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn expand_enum_with_serde_untagged() {
+        let input: DeriveInput = syn::parse_quote! {
+            #[serde(untagged)]
+            enum FooBar<T> where T: Copy {
+                NewtypeVariant(String),
+            }
+        };
+
+        let actual = ImplCodegen::expand(input);
+
+        let expected: TokenStream2 = syn::parse_quote! {
+            #[automatically_derived]
+            impl<T> konfig::WithDocs for FooBar<T>
+            where
+                T: Copy
+            {
+                fn add_docs(
+                    &self,
+                    path: &mut konfig::value::Path<'static, ()>,
+                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                ) -> konfig::Result<()> {
+                    match self {
+                        Self::NewtypeVariant(n0) => {
+                            {
+                                n0.add_docs(path, docs)?;
+                            }
                         }
                     }
                     Ok(())
