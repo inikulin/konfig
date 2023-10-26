@@ -30,20 +30,11 @@ impl DocWriter {
 }
 
 fn write_path_item_docs(out: &mut String, docs: &str, nesting_level: usize) {
-    let mut is_doc_head = true;
+    let (header, body) = split_header_and_body(docs);
 
-    for line in docs.lines() {
-        let line = line.trim();
+    write_header(out, header, nesting_level);
 
-        if line.is_empty() {
-            is_doc_head = false;
-        }
-
-        if is_doc_head {
-            write_header_line(out, line, nesting_level);
-            continue;
-        }
-
+    for line in body.lines() {
         if let Some(gt_sign_pos) = doc_line_leading_gt_sign_pos(line) {
             let mut line = line.to_string();
 
@@ -57,17 +48,39 @@ fn write_path_item_docs(out: &mut String, docs: &str, nesting_level: usize) {
         out.push('\n');
     }
 
-    out.push('\n');
+    if !body.is_empty() {
+        out.push('\n');
+    }
 }
 
-fn write_header_line(out: &mut String, line: &str, nesting_level: usize) {
-    const HEADER_PREFIXES: [&str; 6] = ["# ", "## ", "### ", "#### ", "##### ", "###### "];
+fn split_header_and_body(docs: &str) -> (&str, &str) {
+    docs.split_once("\n\n").unwrap_or_else(|| (docs, ""))
+}
 
-    let header_prefix_idx = nesting_level.min(HEADER_PREFIXES.len() - 1);
+fn write_header(out: &mut String, header: &str, nesting_level: usize) {
+    const HEADER_DECORATORS: [(&str, &str, &str); 6] = [
+        ("# ", "<h1>\n", "\n</h1>"),
+        ("## ", "<h2>\n", "\n</h2>"),
+        ("### ", "<h3>\n", "\n</h3>"),
+        ("#### ", "<h4>\n", "\n</h4>"),
+        ("##### ", "<h5>\n", "\n</h5>"),
+        ("###### ", "<h6>\n", "\n</h6>"),
+    ];
 
-    out.push_str(HEADER_PREFIXES[header_prefix_idx]);
-    out.push_str(line);
-    out.push('\n');
+    let header_decorator_idx = nesting_level.min(HEADER_DECORATORS.len() - 1);
+    let header_decorator = HEADER_DECORATORS[header_decorator_idx];
+    let is_multiline = header.contains('\n');
+
+    if is_multiline {
+        out.push_str(header_decorator.1);
+        header.lines().for_each(|line| out.push_str(line.trim()));
+        out.push_str(header_decorator.2);
+    } else {
+        out.push_str(header_decorator.0);
+        out.push_str(header.trim());
+    }
+
+    out.push_str("\n\n");
 }
 
 #[cfg(test)]

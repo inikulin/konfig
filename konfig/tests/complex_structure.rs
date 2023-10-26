@@ -203,6 +203,8 @@ fn serialize_complex_structure() {
     let serialized = konfig::to_string(&val).unwrap();
     let expected = include_str!("./data/expected/complex_structure.konfig.md");
 
+    println!("{}", konfig::to_string_with_docs(&val).unwrap());
+
     assert_eq!(
         serialized,
         include_str!("./data/expected/complex_structure.konfig.md"),

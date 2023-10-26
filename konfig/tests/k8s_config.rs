@@ -3815,8 +3815,8 @@ pub enum PodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
 }
 
 /// A label selector is a label query over a set of resources. The result of matchLabels and
-/// matchExpressions are ANDed. 
-/// 
+/// matchExpressions are ANDed.
+///
 /// An empty label selector matches all objects. A null label
 /// selector matches no objects.
 #[derive(Serialize, Deserialize, WithDocs)]
@@ -3882,8 +3882,8 @@ pub enum StickyPodAffinityTerm {
 }
 
 /// A label selector is a label query over a set of resources. The result of matchLabels and
-/// matchExpressions are ANDed. 
-/// 
+/// matchExpressions are ANDed.
+///
 /// An empty label selector matches all objects. A null label
 /// selector matches no objects.
 #[derive(Serialize, Deserialize, WithDocs)]
@@ -3926,8 +3926,8 @@ pub enum PodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
 }
 
 /// A label selector is a label query over a set of resources. The result of matchLabels and
-/// matchExpressions are ANDed. 
-/// 
+/// matchExpressions are ANDed.
+///
 /// An empty label selector matches all objects. A null label
 /// selector matches no objects.
 #[derive(Serialize, Deserialize, WithDocs)]
@@ -4069,8 +4069,8 @@ pub enum HilariousSecretRef {
 }
 
 /// Lifecycle describes actions that the management system should take in response to
-/// container lifecycle events. 
-/// 
+/// container lifecycle events.
+///
 /// For the PostStart and PreStop lifecycle handlers, management
 /// of the container blocks until the action is complete, unless the container process fails,
 /// in which case the handler is aborted.
