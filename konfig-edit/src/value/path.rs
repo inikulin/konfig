@@ -1,6 +1,8 @@
 use crate::serializer::components::{write_escaped_str, write_int};
+use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::fmt::{self, Write};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum PathItem<'i> {
@@ -40,38 +42,44 @@ impl fmt::Display for PathItem<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct Path<'i, M> {
+#[derive(Default)]
+pub struct Path<'i> {
     items: Vec<PathItem<'i>>,
-    metadata: Vec<M>,
+    on_item_push: Option<Box<dyn Fn()>>,
+    on_item_pop: Option<Box<dyn Fn()>>,
 }
 
-impl<'i, M: Default> Path<'i, M> {
+impl<'i> Path<'i> {
+    pub fn set_callbacks(
+        &mut self,
+        on_item_push: impl Fn() + 'static,
+        on_item_pop: impl Fn() + 'static,
+    ) {
+        self.on_item_push = Some(Box::new(on_item_push));
+        self.on_item_pop = Some(Box::new(on_item_pop));
+    }
+
     #[inline]
     pub fn items(&self) -> &[PathItem<'i>] {
         &self.items
     }
 
     #[inline]
-    pub fn metadata(&self) -> &[M] {
-        &self.metadata
-    }
-
-    #[inline]
-    pub fn metadata_mut(&mut self) -> &mut [M] {
-        &mut self.metadata
-    }
-
-    #[inline]
     pub fn push(&mut self, item: PathItem<'i>) {
         self.items.push(item);
-        self.metadata.push(Default::default());
+
+        if let Some(on_item_push) = self.on_item_push.as_ref() {
+            on_item_push();
+        }
     }
 
     #[inline]
     pub fn pop(&mut self) {
-        self.metadata.pop();
         self.items.pop();
+
+        if let Some(on_item_pop) = self.on_item_pop.as_ref() {
+            on_item_pop();
+        }
     }
 
     #[inline]
@@ -111,7 +119,46 @@ impl<'i, M: Default> Path<'i, M> {
     }
 }
 
-impl<M: Default> fmt::Display for Path<'_, M> {
+impl PartialEq for Path<'_> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.items == other.items
+    }
+}
+
+impl Eq for Path<'_> {}
+
+impl Hash for Path<'_> {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.items.hash(state);
+    }
+}
+
+impl Clone for Path<'_> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            on_item_push: None,
+            on_item_pop: None,
+        }
+    }
+}
+
+impl<'i> Borrow<[PathItem<'i>]> for Path<'i> {
+    fn borrow(&self) -> &[PathItem<'i>] {
+        &self.items
+    }
+}
+
+impl fmt::Debug for Path<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Path").field("items", &self.items).finish()
+    }
+}
+
+impl fmt::Display for Path<'_> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.write(f)

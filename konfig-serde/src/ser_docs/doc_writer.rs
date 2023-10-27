@@ -1,31 +1,59 @@
 use konfig_edit::serializer::components::doc_line_leading_gt_sign_pos;
 use konfig_edit::serializer::formatting::{DocLineEscape, MarkdowDocLineEscape};
-use konfig_edit::value::{Path, PathItem};
+use konfig_edit::value::Path;
+use std::cell::RefCell;
 use std::collections::HashMap;
-
-pub type DocsWrittenFlag = bool;
+use std::rc::Rc;
 
 pub struct DocWriter {
-    docs: HashMap<Vec<PathItem<'static>>, String>,
+    docs: HashMap<Path<'static>, String>,
+    docs_written_for_path_item: Vec<bool>,
 }
 
 impl DocWriter {
-    pub fn new(docs: HashMap<Vec<PathItem<'static>>, String>) -> Self {
-        Self { docs }
+    pub fn new_for_path(
+        path: &mut Path<'static>,
+        docs: HashMap<Path<'static>, String>,
+    ) -> Rc<RefCell<Self>> {
+        let writer = Rc::new(RefCell::new(Self {
+            docs,
+            docs_written_for_path_item: vec![],
+        }));
+
+        path.set_callbacks(
+            {
+                let writer = Rc::clone(&writer);
+
+                move || writer.borrow_mut().on_path_item_push()
+            },
+            {
+                let writer = Rc::clone(&writer);
+
+                move || writer.borrow_mut().on_path_item_pop()
+            },
+        );
+
+        writer
     }
 
-    pub fn write_docs_for_path(&self, out: &mut String, path: &mut Path<'static, DocsWrittenFlag>) {
+    pub fn write_docs_for_path(&mut self, out: &mut String, path: &mut Path<'static>) {
         for i in 0..path.items().len() {
-            let docs_written = path.metadata()[i];
-
-            if !docs_written {
+            if !self.docs_written_for_path_item[i] {
                 if let Some(docs) = self.docs.get(&path.items()[0..=i]) {
                     write_path_item_docs(out, docs, i);
                 }
             }
 
-            path.metadata_mut()[i] = true;
+            self.docs_written_for_path_item[i] = true;
         }
+    }
+
+    pub fn on_path_item_push(&mut self) {
+        self.docs_written_for_path_item.push(false);
+    }
+
+    pub fn on_path_item_pop(&mut self) {
+        self.docs_written_for_path_item.pop();
     }
 }
 
@@ -54,7 +82,7 @@ fn write_path_item_docs(out: &mut String, docs: &str, nesting_level: usize) {
 }
 
 fn split_header_and_body(docs: &str) -> (&str, &str) {
-    docs.split_once("\n\n").unwrap_or_else(|| (docs, ""))
+    docs.split_once("\n\n").unwrap_or((docs, ""))
 }
 
 fn write_header(out: &mut String, header: &str, nesting_level: usize) {
@@ -69,6 +97,7 @@ fn write_header(out: &mut String, header: &str, nesting_level: usize) {
 
     let header_decorator_idx = nesting_level.min(HEADER_DECORATORS.len() - 1);
     let header_decorator = HEADER_DECORATORS[header_decorator_idx];
+    let header = header.trim();
     let is_multiline = header.contains('\n');
 
     if is_multiline {
@@ -77,7 +106,7 @@ fn write_header(out: &mut String, header: &str, nesting_level: usize) {
         out.push_str(header_decorator.2);
     } else {
         out.push_str(header_decorator.0);
-        out.push_str(header.trim());
+        out.push_str(header);
     }
 
     out.push_str("\n\n");
@@ -89,12 +118,12 @@ mod tests {
 
     #[test]
     fn write_docs_for_path() {
-        let mut path: Path<'static, ()> = Default::default();
+        let mut path: Path<'static> = Default::default();
         let mut docs = HashMap::default();
 
         let mut add_docs = |field: &'static str, doc: String| {
             path.push_struct_field_name(field);
-            docs.insert(path.items().to_vec(), doc);
+            docs.insert(path.clone(), doc);
         };
 
         add_docs(
@@ -132,8 +161,8 @@ mod tests {
             .join("\n"),
         );
 
-        let writer = DocWriter::new(docs);
-        let mut path: Path<'static, DocsWrittenFlag> = Default::default();
+        let mut path: Path<'static> = Default::default();
+        let writer = DocWriter::new_for_path(&mut path, docs);
 
         path.push_struct_field_name("foo");
         path.push_struct_field_name("bar");
@@ -141,7 +170,7 @@ mod tests {
 
         let mut out = String::new();
 
-        writer.write_docs_for_path(&mut out, &mut path);
+        writer.borrow_mut().write_docs_for_path(&mut out, &mut path);
 
         assert_eq!(
             out,
@@ -149,7 +178,7 @@ mod tests {
                 "# This is docs for `foo` field",
                 "",
                 "This is some description of the the `foo` field.",
-                "<span>&gt;</span> this line should be escaped",
+                "  <span>&gt;</span> this line should be escaped",
                 "",
                 "## This is docs for `bar` field",
                 "",
@@ -167,7 +196,7 @@ mod tests {
 
         let mut out = String::new();
 
-        writer.write_docs_for_path(&mut out, &mut path);
+        writer.borrow_mut().write_docs_for_path(&mut out, &mut path);
 
         assert_eq!(
             out,

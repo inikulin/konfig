@@ -34,8 +34,8 @@ impl Visit<'_> for ImplCodegen {
             impl #impl_generics konfig::WithDocs for #name #ty_generics #where_clause {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     #body
 
@@ -354,7 +354,7 @@ fn extract_docs_and_cfg_attrs(attrs: &[Attribute]) -> (TokenStream2, Vec<&Attrib
     } else {
         let docs = docs.join("\n");
 
-        quote! { docs.insert(path.items().to_vec(), #docs.to_string()); }
+        quote! { docs.insert(path.clone(), #docs.to_string()); }
     };
 
     (docs, cfg_attrs)
@@ -389,13 +389,13 @@ mod tests {
             impl<T> konfig::WithDocs for FooBar<T> where T: Copy {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     {
                         path.push_struct_field_name("foo");
                         docs.insert(
-                            path.items().to_vec(),
+                            path.clone(),
                             " Field `foo`.\n\n Some description.".to_string()
                         );
                         self.foo.add_docs(path, docs)?;
@@ -403,7 +403,7 @@ mod tests {
                     }
                     {
                         path.push_struct_field_name("bar");
-                        docs.insert(path.items().to_vec(), " Field `bar`.".to_string());
+                        docs.insert(path.clone(), " Field `bar`.".to_string());
                         self.bar.add_docs(path, docs)?;
                         path.pop();
                     }
@@ -415,7 +415,7 @@ mod tests {
                     #[cfg(test)]
                     {
                         path.push_struct_field_name("qux");
-                        docs.insert(path.items().to_vec(), " Field `qux`.".to_string());
+                        docs.insert(path.clone(), " Field `qux`.".to_string());
                         self.qux.add_docs(path, docs)?;
                         path.pop();
                     }
@@ -453,13 +453,13 @@ mod tests {
             impl<T> konfig::WithDocs for FooBar<T> where T: Copy {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     {
                         path.push_sequence_index(0usize);
                         docs.insert(
-                            path.items().to_vec(),
+                            path.clone(),
                             " Field `foo`.\n\n Some description.".to_string()
                         );
                         self.0.add_docs(path, docs)?;
@@ -467,7 +467,7 @@ mod tests {
                     }
                     {
                         path.push_sequence_index(1usize);
-                        docs.insert(path.items().to_vec(), " Field `bar`.".to_string());
+                        docs.insert(path.clone(), " Field `bar`.".to_string());
                         self.1.add_docs(path, docs)?;
                         path.pop();
                     }
@@ -479,7 +479,7 @@ mod tests {
                     #[cfg(test)]
                     {
                         path.push_sequence_index(3usize);
-                        docs.insert(path.items().to_vec(), " Field `qux`.".to_string());
+                        docs.insert(path.clone(), " Field `qux`.".to_string());
                         self.3.add_docs(path, docs)?;
                         path.pop();
                     }
@@ -505,8 +505,8 @@ mod tests {
             impl<T> konfig::WithDocs for FooBar<T> where T: Copy {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     Ok(())
                 }
@@ -568,14 +568,14 @@ mod tests {
             {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     match self {
                         Self::UnitVariant => (),
                         Self::NewtypeVariant(n0) => {
                             path.push_variant_name("NewtypeVariant");
-                            docs.insert(path.items().to_vec(), " NewtypeVariant docs.".to_string());
+                            docs.insert(path.clone(), " NewtypeVariant docs.".to_string());
                             {
                                 n0.add_docs(path, docs)?;
                             }
@@ -583,11 +583,11 @@ mod tests {
                         }
                         Self::TupleVariant(n0, n1, n2, n3) => {
                             path.push_variant_name("TupleVariant");
-                            docs.insert(path.items().to_vec(), " TupleVariant docs.".to_string());
+                            docs.insert(path.clone(), " TupleVariant docs.".to_string());
                             {
                                 path.push_sequence_index(0usize);
                                 docs.insert(
-                                    path.items().to_vec(),
+                                    path.clone(),
                                     " Field `foo`.\n\n Some description.".to_string()
                                 );
                                 n0.add_docs(path, docs)?;
@@ -595,7 +595,7 @@ mod tests {
                             }
                             {
                                 path.push_sequence_index(1usize);
-                                docs.insert(path.items().to_vec(), " Field `bar`.".to_string());
+                                docs.insert(path.clone(), " Field `bar`.".to_string());
                                 n1.add_docs(path, docs)?;
                                 path.pop();
                             }
@@ -607,7 +607,7 @@ mod tests {
                             #[cfg(test)]
                             {
                                 path.push_sequence_index(3usize);
-                                docs.insert(path.items().to_vec(), " Field `qux`.".to_string());
+                                docs.insert(path.clone(), " Field `qux`.".to_string());
                                 n3.add_docs(path, docs)?;
                                 path.pop();
                             }
@@ -615,11 +615,11 @@ mod tests {
                         }
                         Self::StructVariant { foo, bar, baz, qux } => {
                             path.push_variant_name("StructVariant");
-                            docs.insert(path.items().to_vec(), " StructVariant docs.".to_string());
+                            docs.insert(path.clone(), " StructVariant docs.".to_string());
                             {
                                 path.push_struct_field_name("foo");
                                 docs.insert(
-                                    path.items().to_vec(),
+                                    path.clone(),
                                     " Field `foo`.\n\n Some description.".to_string()
                                 );
                                 foo.add_docs(path, docs)?;
@@ -627,7 +627,7 @@ mod tests {
                             }
                             {
                                 path.push_struct_field_name("bar");
-                                docs.insert(path.items().to_vec(), " Field `bar`.".to_string());
+                                docs.insert(path.clone(), " Field `bar`.".to_string());
                                 bar.add_docs(path, docs)?;
                                 path.pop();
                             }
@@ -639,7 +639,7 @@ mod tests {
                             #[cfg(test)]
                             {
                                 path.push_struct_field_name("qux");
-                                docs.insert(path.items().to_vec(), " Field `qux`.".to_string());
+                                docs.insert(path.clone(), " Field `qux`.".to_string());
                                 qux.add_docs(path, docs)?;
                                 path.pop();
                             }
@@ -676,8 +676,8 @@ mod tests {
             impl<T> konfig::WithDocs for FooBar<T> where T: Copy {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     {
                         path.push_struct_field_name("FOO");
@@ -735,8 +735,8 @@ mod tests {
             {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     match self {
                         Self::NewtypeVariant(n0) => {
@@ -789,8 +789,8 @@ mod tests {
             {
                 fn add_docs(
                     &self,
-                    path: &mut konfig::value::Path<'static, ()>,
-                    docs: &mut std::collections::HashMap<Vec<konfig::value::PathItem<'static>>, String>,
+                    path: &mut konfig::value::Path<'static>,
+                    docs: &mut std::collections::HashMap<konfig::value::Path<'static>, String>,
                 ) -> konfig::Result<()> {
                     match self {
                         Self::NewtypeVariant(n0) => {

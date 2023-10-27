@@ -1,6 +1,6 @@
 use indexmap::{IndexMap, IndexSet};
 use konfig_edit::error::{Error, Result};
-use konfig_edit::value::{Path, PathItem};
+use konfig_edit::value::Path;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::cmp::Reverse;
@@ -27,8 +27,8 @@ use std::time::{Duration, SystemTime};
 pub trait WithDocs {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()>;
 }
 
@@ -38,8 +38,8 @@ macro_rules! impl_noop {
             #[inline]
             fn add_docs(
                 &self,
-                _path: &mut Path<'static, ()>,
-                _docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                _path: &mut Path<'static>,
+                _docs: &mut HashMap<Path<'static>, String>,
             ) -> Result<()> {
                 Ok(())
             }
@@ -130,8 +130,8 @@ macro_rules! impl_for_ref {
             #[inline]
             fn add_docs(
                 &self,
-                path: &mut Path<'static, ()>,
-                docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                path: &mut Path<'static>,
+                docs: &mut HashMap<Path<'static>, String>,
             ) -> Result<()> {
                 (**self).add_docs(path, docs)
             }
@@ -155,8 +155,8 @@ macro_rules! impl_for_weak {
             {
                 fn add_docs(
                     &self,
-                    path: &mut Path<'static, ()>,
-                    docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                    path: &mut Path<'static>,
+                    docs: &mut HashMap<Path<'static>, String>,
                 ) -> Result<()> {
                     self.upgrade().add_docs(path, docs)
                 }
@@ -172,12 +172,12 @@ macro_rules! impl_for_seq {
         impl $( $impl_desc )* {
             fn add_docs(
                 &self,
-                path: &mut Path<'static, ()>,
-                docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                path: &mut Path<'static>,
+                docs: &mut HashMap<Path<'static>, String>,
             ) -> Result<()> {
                 for (idx, elem) in self.iter().enumerate() {
                     path.push_sequence_index(idx);
-                    docs.insert(path.items().to_vec(), format!("• `{idx}`"));
+                    docs.insert(path.clone(), format!("• `{idx}`"));
                     elem.add_docs(path, docs)?;
                     path.pop();
                 }
@@ -219,12 +219,12 @@ macro_rules! impl_for_tuple {
             {
                 fn add_docs(
                     &self,
-                    path: &mut Path<'static, ()>,
-                    docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                    path: &mut Path<'static>,
+                    docs: &mut HashMap<Path<'static>, String>,
                 ) -> Result<()> {
                     $(
                         path.push_sequence_index($idx);
-                        docs.insert(path.items().to_vec(), format!("• `{}`", $idx));
+                        docs.insert(path.clone(), format!("• `{}`", $idx));
                         self.$idx.add_docs(path, docs)?;
                         path.pop();
                     )*
@@ -261,15 +261,15 @@ macro_rules! impl_for_map {
         impl $( $impl_desc )* {
             fn add_docs(
                 &self,
-                path: &mut Path<'static, ()>,
-                docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+                path: &mut Path<'static>,
+                docs: &mut HashMap<Path<'static>, String>,
             ) -> Result<()> {
                 for (key, val) in self.iter() {
                     let key = key.to_string();
                     let doc = format!("• `{key}`");
 
                     path.push_map_key(key);
-                    docs.insert(path.items().to_vec(), doc);
+                    docs.insert(path.clone(), doc);
                     val.add_docs(path, docs)?;
                     path.pop();
                 }
@@ -290,8 +290,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         self.get().add_docs(path, docs)
     }
@@ -303,8 +303,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         match self.try_borrow() {
             Ok(v) => v.add_docs(path, docs),
@@ -321,8 +321,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         match self.lock() {
             Ok(v) => v.add_docs(path, docs),
@@ -339,8 +339,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         match self.read() {
             Ok(v) => v.add_docs(path, docs),
@@ -357,8 +357,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         if let Some(v) = self {
             v.add_docs(path, docs)?;
@@ -375,8 +375,8 @@ where
 {
     fn add_docs(
         &self,
-        path: &mut Path<'static, ()>,
-        docs: &mut HashMap<Vec<PathItem<'static>>, String>,
+        path: &mut Path<'static>,
+        docs: &mut HashMap<Path<'static>, String>,
     ) -> Result<()> {
         match self {
             Ok(v) => v.add_docs(path, docs),

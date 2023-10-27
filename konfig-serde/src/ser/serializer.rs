@@ -7,9 +7,10 @@ use serde::ser::Serialize;
 
 #[cfg(feature = "ser-docs")]
 mod ser_docs_deps {
-    pub(super) use crate::ser_docs::doc_writer::{DocWriter, DocsWrittenFlag};
-    pub(super) use konfig_edit::value::PathItem;
+    pub(super) use crate::ser_docs::doc_writer::DocWriter;
+    pub(super) use std::cell::RefCell;
     pub(super) use std::collections::HashMap;
+    pub(super) use std::rc::Rc;
 }
 
 #[cfg(feature = "ser-docs")]
@@ -20,13 +21,13 @@ pub struct Serializer<'o> {
     pub(super) skip_path_serialization: bool,
 
     #[cfg(not(feature = "ser-docs"))]
-    pub(super) path: Path<'static, ()>,
+    pub(super) path: Path<'static>,
 
     #[cfg(feature = "ser-docs")]
-    pub(super) path: Path<'static, DocsWrittenFlag>,
+    pub(super) path: Path<'static>,
 
     #[cfg(feature = "ser-docs")]
-    doc_writer: Option<DocWriter>,
+    doc_writer: Option<Rc<RefCell<DocWriter>>>,
 }
 
 impl<'o> Serializer<'o> {
@@ -41,15 +42,15 @@ impl<'o> Serializer<'o> {
     }
 
     #[cfg(feature = "ser-docs")]
-    pub fn new_with_docs(
-        out: &'o mut String,
-        docs: HashMap<Vec<PathItem<'static>>, String>,
-    ) -> Self {
+    pub fn new_with_docs(out: &'o mut String, docs: HashMap<Path<'static>, String>) -> Self {
+        let mut path = Default::default();
+        let doc_writer = DocWriter::new_for_path(&mut path, docs);
+
         Self {
-            path: Default::default(),
+            path,
             out,
             skip_path_serialization: false,
-            doc_writer: Some(DocWriter::new(docs)),
+            doc_writer: Some(doc_writer),
         }
     }
 
@@ -64,7 +65,9 @@ impl<'o> Serializer<'o> {
 
         #[cfg(feature = "ser-docs")]
         if let Some(ref doc_writer) = self.doc_writer {
-            doc_writer.write_docs_for_path(self.out, &mut self.path);
+            doc_writer
+                .borrow_mut()
+                .write_docs_for_path(self.out, &mut self.path);
         }
 
         self.path

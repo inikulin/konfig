@@ -30,7 +30,7 @@ pub fn serialize(value: &ValueCell, formatting: FormattingOptions) -> Result<Str
 
 struct KonfigSerializer<'v> {
     out: String,
-    path: Path<'v, ()>,
+    path: Path<'v>,
     have_docs_after: bool,
     formatting: FormattingOptions,
 }
