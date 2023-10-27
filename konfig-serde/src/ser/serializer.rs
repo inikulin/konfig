@@ -42,7 +42,10 @@ impl<'o> Serializer<'o> {
     }
 
     #[cfg(feature = "ser-docs")]
-    pub fn new_with_docs(out: &'o mut String, docs: HashMap<Path<'static>, String>) -> Self {
+    pub fn new_with_docs(
+        out: &'o mut String,
+        docs: HashMap<Path<'static>, String>,
+    ) -> Self {
         let mut path = Default::default();
         let doc_writer = DocWriter::new_for_path(&mut path, docs);
 
